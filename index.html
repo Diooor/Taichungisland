@@ -1,0 +1,2916 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台中一日島｜家鄉知識探險闖關地圖</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Three.js 3D 引擎 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- 引入圓潤手寫感字體 -->
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ocean-light: #e0f4f7;
+            --ocean-deep: #b8e2ec;
+            --paper-bg: #fffdf7;
+            --ink-brown: #4a3b32;
+            --accent-red: #e65c4f;
+            --accent-gold: #f59e0b;
+        }
+
+        body {
+            font-family: 'Zen Maru Gothic', 'Noto Sans TC', sans-serif;
+            background-color: var(--ocean-light);
+            color: var(--ink-brown);
+            overflow-x: hidden;
+            user-select: none;
+        }
+
+        /* 手繪質感邊框與陰影 */
+        .hand-drawn-card {
+            background-color: var(--paper-bg);
+            border: 3px solid var(--ink-brown);
+            border-radius: 24px;
+            box-shadow: 6px 6px 0px var(--ink-brown);
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .hand-drawn-btn {
+            border: 2.5px solid var(--ink-brown);
+            border-radius: 16px;
+            box-shadow: 4px 4px 0px var(--ink-brown);
+            transition: all 0.15s ease;
+        }
+
+        .hand-drawn-btn:hover:not(:disabled) {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0px var(--ink-brown);
+        }
+
+        .hand-drawn-btn:active:not(:disabled) {
+            transform: translate(2px, 2px);
+            box-shadow: 1px 1px 0px var(--ink-brown);
+        }
+
+        /* 海洋波紋背景動畫 */
+        .ocean-bg {
+            background-color: #d4f0f7;
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.5) 0%, transparent 25%),
+                radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.5) 0%, transparent 25%),
+                repeating-linear-gradient(45deg, rgba(255,255,255,0.12) 0px, rgba(255,255,255,0.12) 20px, transparent 20px, transparent 40px);
+        }
+
+        /* 小島漂浮動畫 */
+        @keyframes floatIsland {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-6px); }
+        }
+
+        .island-card {
+            animation: floatIsland 4s ease-in-out infinite;
+            cursor: pointer;
+        }
+
+        .island-card:nth-child(even) {
+            animation-delay: 1.5s;
+        }
+
+        .island-card:nth-child(3n) {
+            animation-delay: 0.7s;
+        }
+
+        .island-card:hover .island-svg-wrap {
+            transform: scale(1.06) rotate(-1deg);
+        }
+
+        /* 小紅旗升起動畫 */
+        @keyframes raiseFlag {
+            0% { transform: translateY(25px) scale(0.4); opacity: 0; }
+            70% { transform: translateY(-4px) scale(1.1); opacity: 1; }
+            100% { transform: translateY(0px) scale(1); opacity: 1; }
+        }
+
+        .flag-raised {
+            animation: raiseFlag 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        /* 蓋章動畫 */
+        @keyframes stampSlam {
+            0% { transform: scale(2.8) rotate(-25deg); opacity: 0; }
+            60% { transform: scale(0.9) rotate(-8deg); opacity: 1; }
+            80% { transform: scale(1.05) rotate(-12deg); }
+            100% { transform: scale(1) rotate(-10deg); opacity: 1; }
+        }
+
+        .stamp-mark {
+            animation: stampSlam 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+            border: 4px double #d93829;
+            color: #d93829;
+            background: rgba(255, 245, 245, 0.92);
+            box-shadow: inset 0 0 0 2px rgba(217, 56, 41, 0.25);
+        }
+
+        /* 溫柔搖晃提示動畫 */
+        @keyframes gentleNotice {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .gentle-shake {
+            animation: gentleNotice 0.35s ease-in-out;
+        }
+
+        /* 隱藏滾動條但保持可捲動 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* 3D 海洋畫布容器與懸浮島嶼名牌 */
+        #ocean3DContainer {
+            position: relative;
+            width: 100%;
+            height: 620px;
+            border-radius: 28px;
+            border: 4px solid var(--ink-brown);
+            box-shadow: 8px 8px 0px var(--ink-brown);
+            overflow: hidden;
+            background: linear-gradient(180deg, #bae6fd 0%, #7dd3fc 45%, #38bdf8 100%);
+            touch-action: none;
+        }
+
+        @media (max-width: 640px) {
+            #ocean3DContainer {
+                height: 490px;
+            }
+        }
+
+        #threeCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            cursor: grab;
+        }
+
+        #threeCanvas:active {
+            cursor: grabbing;
+        }
+
+        .island-3d-label {
+            position: absolute;
+            transform: translate(-50%, -100%);
+            pointer-events: auto;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            white-space: nowrap;
+            z-index: 10;
+        }
+
+        .island-3d-label:hover {
+            transform: translate(-50%, -108%) scale(1.08);
+            z-index: 20;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between ocean-bg">
+
+    <!-- 頂部導覽與進度列 -->
+    <header class="sticky top-0 z-30 bg-[#fffdf7]/95 backdrop-blur-md border-b-4 border-[#4a3b32] px-3 py-2.5 sm:px-6">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+            <!-- 標題區 -->
+            <div class="flex items-center gap-2.5">
+                <div class="w-11 h-11 rounded-2xl bg-[#ffedd5] border-2 border-[#4a3b32] flex items-center justify-center text-2xl shadow-[2px_2px_0px_#4a3b32]">
+                    🏝️
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-xl sm:text-2xl font-black tracking-wide text-[#4a3b32]">台中一日島</h1>
+                        <span class="hidden md:inline-block text-xs font-bold bg-[#fef08a] text-[#4a3b32] px-2.5 py-0.5 rounded-full border border-[#4a3b32]">
+                            手繪家鄉闖關地圖
+                        </span>
+                    </div>
+                    <p class="text-xs text-[#786254] font-medium">點開小島讀故事、答 2 題蓋知識章，升起小紅旗！</p>
+                </div>
+            </div>
+
+            <!-- 狀態與操作按鈕 -->
+            <div class="flex items-center gap-2 sm:gap-3">
+                <!-- 知識章統計 -->
+                <button onclick="openStampBook()" class="hand-drawn-btn bg-[#fef3c7] px-3 py-1.5 flex items-center gap-1.5 text-sm font-bold" title="查看集章冊">
+                    <span class="text-lg">💮</span>
+                    <span>知識章：<span id="stampCountText" class="text-[#d93829] font-black">0</span> / 10</span>
+                </button>
+
+                <!-- 星星統計 -->
+                <div class="bg-[#fff7ed] border-2 border-[#4a3b32] rounded-2xl px-3 py-1.5 flex items-center gap-1 text-sm font-bold shadow-[2px_2px_0px_#4a3b32]" title="一次答對可獲得滿分星星">
+                    <span class="text-lg">⭐</span>
+                    <span id="starCountText" class="text-amber-600 font-black">0</span>
+                    <span class="text-xs text-[#786254] hidden sm:inline">/ 20</span>
+                </div>
+
+                <!-- 領取證書按鈕 -->
+                <button id="certNavBtn" onclick="openCertificateModal()" class="hand-drawn-btn bg-[#fca5a5] hover:bg-[#f87171] text-[#4a3b32] px-3 py-1.5 text-sm font-black flex items-center gap-1">
+                    <span>🎓</span>
+                    <span class="hidden sm:inline">探險家證書</span>
+                </button>
+
+                <!-- 五步驟設計心法 -->
+                <button onclick="openMethodModal()" class="hand-drawn-btn bg-[#e0e7ff] hover:bg-[#c7d2fe] text-[#4a3b32] px-2.5 py-1.5 text-sm font-bold flex items-center gap-1" title="給老師與家長的五步驟教學">
+                    <span>💡</span>
+                    <span class="hidden md:inline">製作心法</span>
+                </button>
+
+                <!-- 音效開關 -->
+                <button id="soundToggleBtn" onclick="toggleSound()" class="hand-drawn-btn bg-white w-9 h-9 flex items-center justify-center text-base" title="切換音效">
+                    🔊
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主地圖區域 -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 sm:py-8 relative">
+        <!-- 歡迎橫幅與進度提示 -->
+        <div class="hand-drawn-card p-4 sm:p-5 mb-5 bg-gradient-to-r from-[#fffbeb] via-[#fffdf7] to-[#f0fdf4] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div class="flex items-start sm:items-center gap-3.5">
+                <div class="text-3xl sm:text-4xl shrink-0">🧭</div>
+                <div>
+                    <h2 id="welcomeBannerTitle" class="text-base sm:text-lg font-black text-[#4a3b32]">
+                        小小探險家，帶著你的 3D 角色沿著跨海步道出發破關吧！
+                    </h2>
+                    <p id="welcomeBannerSub" class="text-xs sm:text-sm text-[#6b5648] mt-0.5">
+                        點擊任一座小島或按「🚶 前往下一島」，探險家就會沿著海上步道跑過去登島闖關！也能用鍵盤 ⬅️ ➡️ 方向鍵移動喔！
+                    </p>
+                </div>
+            </div>
+            <div class="w-full md:w-64 shrink-0">
+                <div class="flex justify-between text-xs font-bold mb-1">
+                    <span>探險進度</span>
+                    <span id="progressPercentText">0%</span>
+                </div>
+                <div class="w-full h-4 bg-[#e5e0d5] rounded-full border-2 border-[#4a3b32] overflow-hidden p-0.5">
+                    <div id="progressBarFill" class="h-full bg-gradient-to-r from-[#fb923c] to-[#e65c4f] rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3D / 2D 視角切換與操作導覽列 -->
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div class="flex items-center gap-2">
+                <button id="btnView3D" onclick="switchMapMode('3d')" class="hand-drawn-btn bg-[#fde68a] px-4 py-2 text-xs sm:text-sm font-black flex items-center gap-1.5">
+                    <span>🌐</span>
+                    <span>3D 立體漂浮群島</span>
+                </button>
+                <button id="btnView2D" onclick="switchMapMode('2d')" class="hand-drawn-btn bg-white px-4 py-2 text-xs sm:text-sm font-bold flex items-center gap-1.5">
+                    <span>🗺️</span>
+                    <span>2D 手繪圖鑑網格</span>
+                </button>
+            </div>
+
+            <div id="controls3DToolbar" class="flex flex-wrap items-center gap-2">
+                <span class="text-xs font-bold text-[#4a3b32] bg-[#fffdf7]/90 px-3 py-1.5 rounded-full border-2 border-[#4a3b32]">
+                    🧒 點擊小島／方向鍵 ⬅️➡️：角色沿道路走過去破關 ｜ 🖱️ 拖曳：旋轉視角
+                </span>
+                <button onclick="movePlayerStep(-1)" class="hand-drawn-btn bg-[#e0f2fe] hover:bg-[#bae6fd] px-3 py-1.5 text-xs font-black">
+                    ⬅️ 上一島
+                </button>
+                <button onclick="movePlayerStep(1)" class="hand-drawn-btn bg-[#86efac] hover:bg-[#4ade80] px-3 py-1.5 text-xs font-black">
+                    🚶 前往下一島 ➡️
+                </button>
+                <button onclick="enterCurrentPlayerIsland()" class="hand-drawn-btn bg-[#fde68a] hover:bg-[#fcd34d] px-3 py-1.5 text-xs font-black">
+                    🚩 登島破關
+                </button>
+                <button onclick="reset3DCamera()" class="hand-drawn-btn bg-white hover:bg-[#fef3c7] px-3 py-1.5 text-xs font-black">
+                    🎯 全景視角
+                </button>
+            </div>
+        </div>
+
+        <!-- 3D 互動立體海洋群島舞台 -->
+        <div id="ocean3DWrapper" class="mb-6">
+            <div id="ocean3DContainer">
+                <canvas id="threeCanvas"></canvas>
+                <!-- 角色目前位置狀態膠囊 -->
+                <div class="absolute top-3 left-3 z-20 pointer-events-auto flex flex-wrap items-center gap-2">
+                    <div class="bg-[#fffdf7]/95 border-2 border-[#4a3b32] rounded-2xl px-3.5 py-1.5 shadow-[3px_3px_0px_#4a3b32] flex items-center gap-2">
+                        <span class="text-xl animate-bounce">🧒</span>
+                        <div class="text-xs">
+                            <div class="text-[10px] font-bold text-[#786254]">探險家目前位置</div>
+                            <div id="playerLocationText" class="font-black text-[#4a3b32]">第 1 島：🍨 宮原眼科</div>
+                        </div>
+                        <button id="enterIslandHudBtn" onclick="enterCurrentPlayerIsland()" class="ml-1 bg-[#fb923c] hover:bg-[#f97316] text-white border-2 border-[#4a3b32] rounded-xl px-2.5 py-1 text-xs font-black shadow-[2px_2px_0px_#4a3b32] active:translate-y-0.5">
+                            進入闖關 ➜
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3D 島嶼懸浮互動名牌容器 -->
+                <div id="labels3DContainer" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
+
+                <!-- 左下角快速選島導航膠囊 -->
+                <div class="absolute bottom-3 left-3 right-3 z-20 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 px-1">
+                    <span class="shrink-0 bg-[#4a3b32] text-white text-[11px] font-black px-2.5 py-1 rounded-full">
+                        🏃 跑去小島：
+                    </span>
+                    <div id="quickJumpBar" class="flex items-center gap-1.5"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 10座手繪小島 2D 網格地圖（可切換查看） -->
+        <div id="islandsGrid" class="hidden grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 sm:gap-6">
+            <!-- 由 JavaScript 動態繪製 10 座手繪風島嶼 -->
+        </div>
+    </main>
+
+    <!-- 底部資訊列 -->
+    <footer class="bg-[#fffdf7] border-t-4 border-[#4a3b32] py-4 px-4 text-center text-xs sm:text-sm text-[#6b5648]">
+        <div class="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+            <p class="font-bold">✨ 「設計一個好玩的學習遊戲，需要的不是寫程式，而是你對一個地方的感情。」</p>
+            <div class="flex items-center gap-3">
+                <button onclick="openMethodModal()" class="underline font-bold hover:text-[#d93829]">查看「五步驟做出家鄉闖關地圖」</button>
+                <span>｜</span>
+                <button onclick="resetGameConfirm()" class="underline hover:text-[#d93829]">重新開始闖關</button>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ==================== 1. 島嶼闖關互動視窗 (Modal) ==================== -->
+    <div id="islandModal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs hidden items-center justify-center p-3 sm:p-5 overflow-y-auto">
+        <div class="hand-drawn-card max-w-xl w-full p-5 sm:p-7 relative my-auto bg-[#fffdf7] max-h-[92vh] overflow-y-auto no-scrollbar">
+            <!-- 關閉按鈕 -->
+            <button onclick="closeIslandModal()" class="hand-drawn-btn bg-[#fee2e2] hover:bg-[#fecaca] w-9 h-9 rounded-full flex items-center justify-center font-black text-lg absolute top-4 right-4">
+                ✕
+            </button>
+
+            <!-- 島嶼頂部資訊 -->
+            <div class="flex items-center gap-3 mb-4 pr-10">
+                <span id="modalIslandBadge" class="px-3 py-1 rounded-full text-xs font-black border-2 border-[#4a3b32] bg-[#fde68a]">
+                    第 1 島
+                </span>
+                <span id="modalIslandArea" class="text-xs font-bold text-[#786254] bg-[#f3f0e6] px-2.5 py-1 rounded-full border border-[#4a3b32]/30">
+                    中區
+                </span>
+            </div>
+
+            <!-- 島嶼插畫與標題 -->
+            <div class="flex flex-col sm:flex-row items-center gap-4 bg-[#f0f9ff] border-2 border-dashed border-[#4a3b32] rounded-2xl p-4 mb-5">
+                <div id="modalIslandSvg" class="w-28 h-24 shrink-0 flex items-center justify-center"></div>
+                <div class="text-center sm:text-left">
+                    <h3 id="modalIslandName" class="text-2xl font-black text-[#4a3b32] mb-1">宮原眼科</h3>
+                    <div class="inline-block bg-[#fef3c7] border border-[#4a3b32] rounded-xl px-3 py-2 text-xs sm:text-sm font-bold text-[#4a3b32] leading-relaxed">
+                        <span class="text-[#d93829] font-black">🌟 只有它才有的事：</span>
+                        <span id="modalIslandUniqueFact"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 問題進度指示 -->
+            <div id="quizSection">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <span id="questionStepBadge" class="bg-[#4a3b32] text-white text-xs font-black px-3 py-1 rounded-full">
+                            第 1 / 2 題
+                        </span>
+                        <span id="firstTryStarHint" class="text-xs font-bold text-amber-600 flex items-center gap-1">
+                            ⭐ 一次答對可得滿分星星！
+                        </span>
+                    </div>
+                    <div class="flex gap-1.5" id="questionDots">
+                        <span class="w-3 h-3 rounded-full border-2 border-[#4a3b32] bg-[#fbbf24]"></span>
+                        <span class="w-3 h-3 rounded-full border-2 border-[#4a3b32] bg-white"></span>
+                    </div>
+                </div>
+
+                <!-- 題目文字 -->
+                <div class="bg-white border-2 border-[#4a3b32] rounded-2xl p-4 mb-4 shadow-[3px_3px_0px_#4a3b32]">
+                    <p id="questionText" class="text-base sm:text-lg font-black text-[#4a3b32] leading-snug"></p>
+                </div>
+
+                <!-- 選項清單 -->
+                <div id="optionsContainer" class="space-y-2.5 mb-4"></div>
+
+                <!-- 溫柔提示與回饋區 -->
+                <div id="feedbackBox" class="hidden rounded-2xl p-4 border-2 border-[#4a3b32] mb-4 transition-all">
+                    <div class="flex items-start gap-3">
+                        <div id="feedbackEmoji" class="text-2xl shrink-0">💡</div>
+                        <div class="flex-1">
+                            <p id="feedbackTitle" class="font-black text-sm sm:text-base"></p>
+                            <p id="feedbackDesc" class="text-xs sm:text-sm mt-1 leading-relaxed"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 下一題按鈕 -->
+                <button id="nextQuestionBtn" onclick="goToNextStep()" class="hidden w-full hand-drawn-btn bg-[#86efac] hover:bg-[#4ade80] text-[#4a3b32] font-black py-3 text-base">
+                    下一題 ➜
+                </button>
+            </div>
+
+            <!-- 島嶼過關蓋章慶祝區 -->
+            <div id="islandCompleteSection" class="hidden text-center py-3">
+                <div class="inline-block relative mb-3">
+                    <!-- 模擬蓋下的知識章 -->
+                    <div id="earnedStampBox" class="stamp-mark w-36 h-36 rounded-full flex flex-col items-center justify-center mx-auto p-2 select-none">
+                        <span class="text-xs font-black tracking-widest">台中一日島</span>
+                        <span id="stampEmoji" class="text-3xl my-0.5">🍨</span>
+                        <span id="stampTitleText" class="text-sm font-black border-t border-b border-[#d93829] px-2 py-0.5 my-0.5">宮原知識章</span>
+                        <span class="text-[10px] font-bold">探險認證 🚩</span>
+                    </div>
+                </div>
+
+                <h4 class="text-xl font-black text-[#4a3b32] mt-2">太棒了！成功蓋下知識章，島上升起小紅旗 🚩</h4>
+                <p id="islandEarnedStarsText" class="text-sm font-bold text-amber-600 mt-1 mb-4"></p>
+
+                <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                    <button onclick="replayCurrentIsland()" class="hand-drawn-btn bg-[#fef3c7] hover:bg-[#fde68a] px-4 py-2.5 text-sm font-bold">
+                        🔄 再玩一次拿滿分星星
+                    </button>
+                    <button onclick="closeIslandModal()" class="hand-drawn-btn bg-[#86efac] hover:bg-[#4ade80] px-6 py-2.5 text-base font-black">
+                        繼續探索其他小島 🏝️
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 2. 集章冊視窗 (Modal) ==================== -->
+    <div id="stampBookModal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs hidden items-center justify-center p-3 sm:p-5 overflow-y-auto">
+        <div class="hand-drawn-card max-w-3xl w-full p-5 sm:p-7 relative my-auto bg-[#fffdf7] max-h-[90vh] overflow-y-auto">
+            <button onclick="closeStampBook()" class="hand-drawn-btn bg-[#fee2e2] w-9 h-9 rounded-full flex items-center justify-center font-black text-lg absolute top-4 right-4">
+                ✕
+            </button>
+
+            <div class="flex items-center gap-2.5 mb-2">
+                <span class="text-2xl">📖</span>
+                <h3 class="text-xl sm:text-2xl font-black">我的台中一日島集章冊</h3>
+            </div>
+            <p class="text-xs sm:text-sm text-[#6b5648] mb-5">
+                台灣人從小最愛集章！每完成一座小島就會蓋上一枚專屬「知識章」，一次答對還能收集閃亮星星！
+            </p>
+
+            <div id="stampBookGrid" class="grid grid-cols-2 sm:grid-cols-5 gap-3.5 mb-6">
+                <!-- 動態生成 10 個印章格 -->
+            </div>
+
+            <div class="flex justify-end">
+                <button onclick="closeStampBook()" class="hand-drawn-btn bg-[#fde68a] px-6 py-2 font-black text-sm">
+                    返回地圖
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 3. 探險家證書視窗 (Modal) ==================== -->
+    <div id="certificateModal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs hidden items-center justify-center p-3 sm:p-5 overflow-y-auto">
+        <div class="hand-drawn-card max-w-2xl w-full p-5 sm:p-7 relative my-auto bg-[#fffdf7] max-h-[92vh] overflow-y-auto">
+            <button onclick="closeCertificateModal()" class="hand-drawn-btn bg-[#fee2e2] w-9 h-9 rounded-full flex items-center justify-center font-black text-lg absolute top-4 right-4">
+                ✕
+            </button>
+
+            <!-- 尚未集滿 10 章時的溫馨提示 -->
+            <div id="certLockedView" class="text-center py-6">
+                <div class="text-5xl mb-3">🗺️</div>
+                <h3 class="text-xl sm:text-2xl font-black mb-2">探險家證書正在等你領取！</h3>
+                <p id="certLockedProgress" class="text-sm sm:text-base font-bold text-[#6b5648] mb-4">
+                    目前已經收集了 0 / 10 枚知識章
+                </p>
+                <p class="text-xs sm:text-sm text-[#786254] max-w-md mx-auto mb-6 leading-relaxed">
+                    只要集滿 10 座小島的「知識章」，就能在這裡寫上自己的名字，領取專屬的「台中一日島探險家證書」喔！
+                </p>
+                <!-- 預覽解鎖按鈕（方便老師與家長直接測試證書功能） -->
+                <div class="flex flex-wrap justify-center gap-3">
+                    <button onclick="closeCertificateModal()" class="hand-drawn-btn bg-[#86efac] px-6 py-2.5 font-black text-sm">
+                        繼續去闖關集章 🚩
+                    </button>
+                    <button onclick="unlockPreviewCertificate()" class="hand-drawn-btn bg-[#f3f0e6] px-4 py-2.5 font-bold text-xs text-[#6b5648]">
+                        👀 老師／家長預覽證書樣式
+                    </button>
+                </div>
+            </div>
+
+            <!-- 集滿或預覽時的證書製作與下載區 -->
+            <div id="certUnlockedView" class="hidden">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pr-10">
+                    <div>
+                        <h3 class="text-xl font-black text-[#4a3b32]">🎓 領取你的「探險家證書」</h3>
+                        <p class="text-xs text-[#6b5648]">輸入探險家的名字，點擊下方按鈕即可儲存成圖片留念！</p>
+                    </div>
+                </div>
+
+                <!-- 名字輸入框 -->
+                <div class="flex flex-col sm:flex-row gap-2.5 mb-5 bg-[#fef3c7] p-3.5 rounded-2xl border-2 border-[#4a3b32]">
+                    <div class="flex-1">
+                        <label for="explorerNameInput" class="block text-xs font-black mb-1">✍️ 請輸入小小探險家的名字：</label>
+                        <input id="explorerNameInput" type="text" maxlength="16" placeholder="例如：林小宥、三年二班王小明" value="小小探險家"
+                            oninput="renderCertificateCanvas()"
+                            class="w-full px-3.5 py-2 rounded-xl border-2 border-[#4a3b32] bg-white font-black text-base focus:outline-none focus:ring-2 focus:ring-amber-400">
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="downloadCertificateImage()" class="w-full sm:w-auto hand-drawn-btn bg-[#fb923c] hover:bg-[#f97316] text-white font-black px-5 py-2.5 text-sm flex items-center justify-center gap-1.5">
+                            <span>📥</span>
+                            <span>下載證書圖片</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 證書即時預覽 Canvas -->
+                <div class="border-4 border-[#4a3b32] rounded-2xl overflow-hidden shadow-md bg-white">
+                    <canvas id="certificateCanvas" width="900" height="640" class="w-full h-auto block"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 4. 五步驟製作心法視窗 (Modal) ==================== -->
+    <div id="methodModal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs hidden items-center justify-center p-3 sm:p-5 overflow-y-auto">
+        <div class="hand-drawn-card max-w-2xl w-full p-5 sm:p-7 relative my-auto bg-[#fffdf7] max-h-[90vh] overflow-y-auto">
+            <button onclick="closeMethodModal()" class="hand-drawn-btn bg-[#fee2e2] w-9 h-9 rounded-full flex items-center justify-center font-black text-lg absolute top-4 right-4">
+                ✕
+            </button>
+
+            <div class="inline-block bg-[#fde68a] border-2 border-[#4a3b32] px-3 py-1 rounded-full text-xs font-black mb-2">
+                分享給老師、家長與孩子們
+            </div>
+            <h3 class="text-xl sm:text-2xl font-black text-[#4a3b32] mb-2">
+                💡 五步驟，做出你的「家鄉闖關地圖」
+            </h3>
+            <p class="text-xs sm:text-sm text-[#6b5648] mb-5 leading-relaxed">
+                設計一個好玩的學習遊戲，真的不需要會寫程式，需要的是<strong>「你對一個地方的感情」</strong>。
+            </p>
+
+            <div class="space-y-3.5 text-xs sm:text-sm">
+                <div class="p-3.5 rounded-2xl bg-[#fffbeb] border-2 border-[#4a3b32]">
+                    <p class="font-black text-base text-[#d93829] mb-1">步驟 1｜選 5～10 個你有故事的地方 🗺️</p>
+                    <p class="text-[#4a3b32]">不一定要是名勝。學校旁的雜貨店、阿嬤家附近的廟、每天經過的公園都可以。</p>
+                </div>
+                <div class="p-3.5 rounded-2xl bg-[#f0fdf4] border-2 border-[#4a3b32]">
+                    <p class="font-black text-base text-[#15803d] mb-1">步驟 2｜每個地方寫一句「只有它才有的事」 ✨</p>
+                    <p class="text-[#4a3b32]">例如：宮原眼科以前真的是眼科醫院 👀；高美濕地的招潮蟹，會揮著大螯跟潮水打招呼 🦀。</p>
+                </div>
+                <div class="p-3.5 rounded-2xl bg-[#eff6ff] border-2 border-[#4a3b32]">
+                    <p class="font-black text-base text-[#1d4ed8] mb-1">步驟 3｜把這句話變成 2 題選擇題 😄</p>
+                    <p class="text-[#4a3b32]">訣竅是錯誤選項要有趣一點，像是「逢甲夜市營業到中午 12 點？」，孩子會笑著選對答案。</p>
+                </div>
+                <div class="p-3.5 rounded-2xl bg-[#fdf2f8] border-2 border-[#4a3b32]">
+                    <p class="font-black text-base text-[#be185d] mb-1">步驟 4｜答錯時不要說「錯」，給一個提示 💬</p>
+                    <p class="text-[#4a3b32]">「再想想！名字裡的『谷』字就是線索喔～」一句溫柔的提示，就是讓孩子願意繼續玩下去的關鍵。</p>
+                </div>
+                <div class="p-3.5 rounded-2xl bg-[#fef3c7] border-2 border-[#4a3b32]">
+                    <p class="font-black text-base text-[#b45309] mb-1">步驟 5｜用「蓋章」當作獎勵 💮</p>
+                    <p class="text-[#4a3b32]">台灣人從小就愛集章，紀念章、集點卡都是。完成一關就蓋一枚章，一次答對還能多拿星星 ⭐，孩子會自己想重玩拿滿分。</p>
+                </div>
+            </div>
+
+            <div class="mt-5 p-4 rounded-2xl bg-[#f3f0e6] border-2 border-dashed border-[#4a3b32] flex flex-col sm:flex-row items-center justify-between gap-3">
+                <p class="text-xs font-bold text-[#4a3b32]">
+                    📋 想帶孩子或學生一起做其他縣市的家鄉島嶼嗎？複製下方的 AI 提示詞模板就能直接開工！
+                </p>
+                <button id="copyPromptBtn" onclick="copyAiPromptTemplate()" class="shrink-0 hand-drawn-btn bg-white px-4 py-2 text-xs font-black">
+                    📋 複製 AI 提示詞模板
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 5. 重新開始確認視窗 (不使用原生 confirm) ==================== -->
+    <div id="resetConfirmModal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs hidden items-center justify-center p-4">
+        <div class="hand-drawn-card max-w-sm w-full p-6 text-center bg-[#fffdf7]">
+            <div class="text-4xl mb-2">🔄</div>
+            <h4 class="text-lg font-black mb-2">要重新開始探險嗎？</h4>
+            <p class="text-xs sm:text-sm text-[#6b5648] mb-5">
+                重新開始會把目前已收集的知識章與星星清空，讓你重新體驗每一座小島喔！
+            </p>
+            <div class="flex gap-3 justify-center">
+                <button onclick="closeResetConfirm()" class="hand-drawn-btn bg-white px-5 py-2 text-sm font-bold">
+                    取消
+                </button>
+                <button onclick="confirmResetGame()" class="hand-drawn-btn bg-[#fca5a5] px-5 py-2 text-sm font-black">
+                    確定重玩
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =========================================================================
+        // 1. 台中一日島：10 座手繪感小島資料（包含故事、幽默選擇題、溫柔提示、專屬印章）
+        // =========================================================================
+        const TAICHUNG_ISLANDS = [
+            {
+                id: 1,
+                name: "宮原眼科",
+                area: "中區・綠川旁",
+                stampName: "宮原知識章",
+                emoji: "🍨",
+                islandColor: "#fde68a",
+                roofColor: "#d9534f",
+                uniqueFact: "宮原眼科以前真的是幫大家看眼睛的眼科醫院，現在卻變成排隊吃冰淇淋跟買鳳梨酥的奇幻城堡！",
+                svgType: "miyahara",
+                questions: [
+                    {
+                        q: "走進「宮原眼科」大門，現在大家排隊最想做的是什麼事？",
+                        options: [
+                            "躺在診療椅上給醫生拔智齒 🦷",
+                            "挑選超多口味的冰淇淋和日出伴手禮 🍨",
+                            "在櫃檯借一百本漫畫書回家看 📚"
+                        ],
+                        correct: 1,
+                        gentleHint: "再想想！雖然名字叫眼科，但現在裡面有滿滿甜滋滋、冰涼涼的點心喔～",
+                        praise: "答對啦！宮原眼科保留了復古紅磚拱廊，裡面像哈利波特的圖書館一樣賣冰淇淋與伴手禮！"
+                    },
+                    {
+                        q: "在日治時期，宮原武熊醫師創立這裡時，它原本真正的用途是什麼？",
+                        options: [
+                            "真的是幫人看眼睛的眼科醫院 👀",
+                            "專門幫企鵝剪頭髮的美容院 🐧",
+                            "製作太陽餅的秘密地下工廠 🥮"
+                        ],
+                        correct: 0,
+                        gentleHint: "再想想！看看它招牌上的四個字「宮原眼科」，答案就藏在名字裡喔～",
+                        praise: "太厲害了！它以前真的是台中規模最大的眼科診所，後來才翻修成現在的文創地標！"
+                    }
+                ]
+            },
+            {
+                id: 2,
+                name: "高美濕地",
+                area: "清水區・海線",
+                stampName: "高美知識章",
+                emoji: "🦀",
+                islandColor: "#fed7aa",
+                roofColor: "#fb923c",
+                uniqueFact: "高美濕地的泥灘上有成千上萬隻招潮蟹，會揮著大螯跟潮水打招呼，岸邊還有一整排轉呀轉的白色大風車！",
+                svgType: "gaomei",
+                questions: [
+                    {
+                        q: "低頭看高美濕地的泥灘地，誰正忙著揮動大螯跟潮水打招呼？",
+                        options: [
+                            "穿著泳褲做日光浴的北極熊 🐻‍❄️",
+                            "揮著大螯的招潮蟹與跳跳彈塗魚 🦀",
+                            "開著潛水艇找寶藏的章魚船長 🐙"
+                        ],
+                        correct: 1,
+                        gentleHint: "再想想！牠們住在泥灘小洞裡，走路橫著走，還有一隻特別大的鉗子喔～",
+                        praise: "沒錯！高美濕地是招潮蟹、彈塗魚和許多珍貴候鳥最溫暖的家！"
+                    },
+                    {
+                        q: "為了保護濕地裡的小動物，我們去高美濕地看夕陽和大風車時應該走在哪裡？",
+                        options: [
+                            "走在彎彎曲曲的木棧道上面欣賞 🌉",
+                            "騎著水上摩托車在泥巴裡衝浪 🚤",
+                            "踩高蹺跟螃蟹比賽百米賽跑 🏃"
+                        ],
+                        correct: 0,
+                        gentleHint: "再想想！泥巴裡住著好多小螃蟹，走在架高的木頭步道上才不會踩到牠們的家喔～",
+                        praise: "超有保育觀念！走在木棧道上既能保護濕地生態，又能安全欣賞絕美的橘紅色夕陽！"
+                    }
+                ]
+            },
+            {
+                id: 3,
+                name: "路思義教堂",
+                area: "西屯區・東海大學",
+                stampName: "路思義知識章",
+                emoji: "⛪",
+                islandColor: "#d9f99d",
+                roofColor: "#eab308",
+                uniqueFact: "矗立在東海大學大草坪上的路思義教堂，整棟建築沒有一根柱子，遠遠看就像一雙溫柔合十祈禱的手！",
+                svgType: "luce",
+                questions: [
+                    {
+                        q: "東海大學裡的「路思義教堂」造型超特別，遠遠看過去最像什麼形狀？",
+                        options: [
+                            "一雙溫柔合十祈禱的手 🙏",
+                            "一顆剛烤好冒煙的巨無霸地瓜 🍠",
+                            "一頂外星人留下的飛碟安全帽 🛸"
+                        ],
+                        correct: 0,
+                        gentleHint: "再想想！它是四片彎彎的金色屋頂往中間靠攏，就像我們在許願或祈禱時的手勢喔～",
+                        praise: "觀察入微！建築師貝聿銘與陳其寬先生設計出沒有樑柱、宛如雙手合十的美麗曲線！"
+                    },
+                    {
+                        q: "逛完東海大學的教堂和大草坪後，大家最喜歡去校園裡的「乳品小棧」買什麼？",
+                        options: [
+                            "剛從牧場送來的新鮮東海鮮奶與鮮奶冰 🥛",
+                            "辣到會噴火的魔鬼辣椒汽水 🌶️",
+                            "會自己走路的機器人鉛筆盒 🤖"
+                        ],
+                        correct: 0,
+                        gentleHint: "再想想！東海大學校園裡有養乳牛的實習牧場，所以那裡的「乳製品」最有名囉～",
+                        praise: "答對了！東海大學有自己的牧場，香醇的鮮乳跟鮮奶冰棒是大家必吃的校園回憶！"
+                    }
+                ]
+            },
+            {
+                id: 4,
+                name: "審計新村",
+                area: "西區・草悟道旁",
+                stampName: "審計知識章",
+                emoji: "🎨",
+                islandColor: "#fecdd3",
+                roofColor: "#e11d48",
+                uniqueFact: "審計新村以前是政府審計處員工住的老宿舍，現在二樓木棧道和小房間裡住滿了做甜點、畫畫的文創小店！",
+                svgType: "shenji",
+                questions: [
+                    {
+                        q: "熱鬧又好逛的「審計新村」，在好幾十年前原本是什麼地方？",
+                        options: [
+                            "恐龍化石的秘密藏寶山洞 🦖",
+                            "省政府審計處員工居住的老宿舍群 🏘️",
+                            "太空人發射火箭前的訓練基地 🚀"
+                        ],
+                        correct: 1,
+                        gentleHint: "再想想！聽聽它的名字「審計新村」，以前是審計處的工作人員和家人一起住的村子喔～",
+                        praise: "太棒了！近半世紀歷史的老宿舍經過活化改造，變成了台中最有活力的青年創業聚落！"
+                    },
+                    {
+                        q: "現在週末走進審計新村的小巷子和二樓木走廊，會遇見什麼風景？",
+                        options: [
+                            "滿滿的手作職人市集、文創小店與香噴噴泡芙 🧁",
+                            "大家排隊在考一百分數學測驗卷 📝",
+                            "成群的綿羊在屋頂上跳跳床 🐑"
+                        ],
+                        correct: 0,
+                        gentleHint: "再想想！這裡有很多喜歡做手工藝、畫插畫和烤甜點的年輕人開的小店喔～",
+                        praise: "完全正確！漫步在老屋磚牆與木階梯間，每個轉角都能發現充滿巧思的手作驚喜！"
+                    }
+                ]
+            },
+            {
+                id: 5,
+                name: "逢甲夜市",
+                area: "西屯區・逢甲大學旁",
+                stampName: "逢甲知識章",
+                emoji: "🐙",
+                islandColor: "#fef08a",
+                roofColor: "#ea580c",
+                uniqueFact: "逢甲夜市是全台灣許多創意小吃的發源地，像是明倫蛋餅、日船章魚小丸子、大腸包小腸都從這裡紅遍全台！",
+                svgType: "fengjia",
+                questions: [
+                    {
+                        q: "想去熱鬧滾滾的「逢甲夜市」吃烤玉米和章魚小丸子，什麼時間去才對？",
+                        options: [
+                            "早上六點帶著牙刷去排隊 🪥",
+                            "只營業到中午 12 點就打烊睡午覺 😴",
+                            "傍晚太陽下山後到晚上最熱鬧 🌙"
+                        ],
+                        correct: 2,
+                        gentleHint: "再想想！它叫做逢甲「夜市」，是月亮出來、星星亮起的時候才會全部亮燈開張喔～",
+                        praise: "哈哈沒錯！傍晚過後攤販陸續點亮招牌，整條街都是讓人流口水的香氣！"
+                    },
+                    {
+                        q: "逢甲夜市被稱為「台灣創意小吃的搖籃」，下列哪一樣是這裡超常見的招牌美味？",
+                        options: [
+                            "外酥內軟的章魚小丸子與大腸包小腸 🐙",
+                            "結成冰塊的北極熊愛スキ摩雪球 🧊",
+                            "加了跳跳糖的石頭湯 🪨"
+                        ],
+                        correct: 0,
+                        gentleHint: "再想想！圓滾滾淋上美乃滋跟柴魚片的小丸子，還有糯米腸夾香腸，都是逢甲的超人氣王喔～",
+                        praise: "小美食家就是你！好多風靡全台灣的夜市排隊美食，最早都是從逢甲夜市研發出來的呢！"
+                    }
+                ]
+            },
+            {
+                id: 6,
+                name: "谷關溫泉",
+                area: "和平區・大甲溪畔",
+                stampName: "谷關知識章",
+                emoji: "♨️",
+                islandColor: "#bbf7d0",
+                roofColor: "#15803d",
+                uniqueFact: "藏在群山溪谷裡的谷關溫泉，擁有百年歷史的暖呼呼碳酸泉，山谷間還有搖搖晃晃的谷關吊橋與捎來步道！",
+                svgType: "guguan",
+                questions: [
+                    {
+                        q: "「谷關溫泉」藏在台中和平區的什麼地形裡面？",
+                        options: [
+                            "四周都是高山與大甲溪流過的山谷裡 ⛰️",
+                            "一望無際、騎駱駝的撒哈拉沙漠裡 🐪",
+                            "百貨公司頂樓的摩天輪車廂裡 🎡"
+                        ],
+                        correct: 0,
+                        gentleHint: "再想想！名字裡的『谷』字就是線索喔～被高山包圍、中間有溪水流過的地方叫什麼呢？",
+                        praise: "答對囉！谷關位在群山環抱的大甲溪河谷，空氣清新，風景就像一幅水墨畫！"
+                    },
+                    {
+                        q: "冬天冷颼颼的時候來到谷關，大家最喜歡體驗什麼活動？",
+                        options: [
+                            "穿著厚外套跳進冰塊池裡釣企鵝 🐧",
+                            "泡暖呼呼的溫泉，或讓溫泉魚輕輕啄腳皮 ♨️",
+                            "跟松鼠一起在樹上睡冬眠 🐿️"
+                        ],
+                        correct: 1,
+                        gentleHint: "再想想！谷關溫泉公園裡有免費的泡腳池，還有可愛的小魚會幫腳丫子做 SPA 喔～",
+                        praise: "太舒服啦！泡完暖呼呼的弱鹼性碳酸泉，再走走捎來吊橋，整個人都充滿元氣！"
+                    }
+                ]
+            },
+            {
+                id: 7,
+                name: "台中國家歌劇院",
+                area: "西屯區・七期",
+                stampName: "歌劇院知識章",
+                emoji: "🎭",
+                islandColor: "#e0e7ff",
+                roofColor: "#4f46e5",
+                uniqueFact: "台中國家歌劇院裡面的牆壁全部是彎彎曲曲的「曲牆」，沒有一根垂直的柱子，就像一座會呼吸的大洞穴！",
+                svgType: "opera",
+                questions: [
+                    {
+                        q: "走進「台中國家歌劇院」抬頭看，會發現裡面的牆壁有什麼神奇的地方？",
+                        options: [
+                            "牆壁全部是用巧克力餅乾拼貼成的 🍫",
+                            "牆壁都是彎彎曲曲的洞穴曲牆，找不到方正死角 🌀",
+                            "牆壁每隔五分鐘就會變成透明玻璃 🪟"
+                        ],
+                        correct: 1,
+                        gentleHint: "再想想！建築師伊東豊雄把這裡設計成「美聲涵洞」，牆壁像水波跟洞穴一樣彎彎的喔～",
+                        praise: "超強眼力！歌劇院由 58 面彎曲的曲牆組成，聲音在裡面傳遞特別圓潤動聽！"
+                    },
+                    {
+                        q: "搭電梯到歌劇院的 6 樓屋頂，會走進一個充滿白色火山口造型的奇幻空間，它叫做什麼？",
+                        options: [
+                            "空中花園（綠劇人與草地廣場） 🌿",
+                            "外星人飛碟加油站 ⛽",
+                            "海底龍宮游泳池 🏊"
+                        ],
+                        correct: 0,
+                        gentleHint: "再想想！在「空中」的屋頂種滿綠草與小花，大家可以在上面散步吹風的花園叫什麼呢？",
+                        praise: "答對了！6 樓的空中花園像一座城市裡的綠色小宇宙，日夜都很適合散步拍照！"
+                    }
+                ]
+            },
+            {
+                id: 8,
+                name: "台中公園湖心亭",
+                area: "北區・市中心",
+                stampName: "湖心亭知識章",
+                emoji: "🚣",
+                islandColor: "#a7f3d0",
+                roofColor: "#b91c1c",
+                uniqueFact: "超過一百歲的台中公園日月湖中央，有一座雙併尖頂的「湖心亭」，它是台中市最經典的代表地標！",
+                svgType: "pavilion",
+                questions: [
+                    {
+                        q: "台中公園裡的百年古蹟「湖心亭」，靜靜地站在公園的哪個位置？",
+                        options: [
+                            "在日月湖的正中央水面上，還可以划小船靠近看 🚣",
+                            "掛在公園最高的大榕樹樹頂上 🌳",
+                            "躲在溜滑梯地底下的秘密通道 🛝"
+                        ],
+                        correct: 0,
+                        gentleHint: "再想想！名字裡的『湖心』兩個字就是提示喔～在湖水的中心點！",
+                        praise: "一點都沒錯！建於 1908 年的湖心亭就在日月湖中央，也是台中市政府府徽的圖案靈感！"
+                    },
+                    {
+                        q: "仔細看湖心亭的屋頂造型，長得像什麼樣子？",
+                        options: [
+                            "兩座並排尖尖的屋頂，像兩頂牽手的小斗笠 👒",
+                            "一個顛倒過來的巨型冰淇淋甜筒 🍦",
+                            "一雙準備起飛的竹蜻蜓 🚁"
+                        ],
+                        correct: 0,
+                        gentleHint: "再想想！看看小島上的插畫，它有兩個連在一起、尖尖往上翹的紅褐色屋頂喔～",
+                        praise: "觀察得好仔細！這種「雙併式尖頂」涼亭造型非常優雅，陪伴了好幾代台中人長大！"
+                    }
+                ]
+            },
+            {
+                id: 9,
+                name: "后豐鐵馬道",
+                area: "后里區・豐原區",
+                stampName: "鐵馬道知識章",
+                emoji: "🚲",
+                islandColor: "#d9f99d",
+                roofColor: "#0284c7",
+                uniqueFact: "后豐鐵馬道是由以前的舊山線火車鐵路改建的，騎著腳踏車就能穿過涼涼的九號隧道，還能飛越壯觀的花梁鋼橋！",
+                svgType: "bikeway",
+                questions: [
+                    {
+                        q: "在台中「后豐鐵馬道」上，大家都是用什麼方式過關斬將看風景的？",
+                        options: [
+                            "騎著貼地飛行的魔法掃帚 🧹",
+                            "騎著腳踏車（鐵馬）迎著微風前進 🚲",
+                            "騎著鴕鳥在馬路上奔跑 鸵"
+                        ],
+                        correct: 1,
+                        gentleHint: "再想想！台灣話裡說的「鐵馬」，就是有兩個輪子、用腳踩踏板會前進的交通工具喔～",
+                        praise: "答對啦！「鐵馬」就是腳踏車，后豐鐵馬道平緩好騎，最適合全家大小一起出遊！"
+                    },
+                    {
+                        q: "后豐鐵馬道的「花梁鋼橋」與長長的「九號隧道」，以前原本是給誰走的？",
+                        options: [
+                            "給舊山線的火車嘟嘟嘟開過去的 🚂",
+                            "給大象家族排隊去洗澡的 🐘",
+                            "給巨型貪食蛇鑽來鑽去的 🐍"
+                        ],
+                        correct: 0,
+                        gentleHint: "再想想！有長長的山洞隧道，又有跨越大甲溪的鋼鐵大橋，以前上面鋪著鐵軌喔～",
+                        praise: "太聰明了！百年歷史的舊山線鐵道退役後，變身成全台最受歡迎的自行車專用道！"
+                    }
+                ]
+            },
+            {
+                id: 10,
+                name: "彩虹眷村",
+                area: "南屯區・春安里",
+                stampName: "彩虹知識章",
+                emoji: "🌈",
+                islandColor: "#fbcfe8",
+                roofColor: "#db2777",
+                uniqueFact: "彩虹眷村的牆壁與地板上，畫滿了五顏六色的可愛人物、小動物與吉祥話，走進去就像掉進彩色童話繪本裡！",
+                svgType: "rainbow",
+                questions: [
+                    {
+                        q: "走進南屯區的「彩虹眷村」，你會看到老房子的牆壁和地板長什麼樣子？",
+                        options: [
+                            "全部塗成黑漆漆像夜晚一樣 🌑",
+                            "畫滿了五顏六色、充滿童趣的人物與動物插畫 🌈",
+                            "貼滿了密密麻麻的九九乘法表 🔢"
+                        ],
+                        correct: 1,
+                        gentleHint: "再想想！名字裡有『彩虹』兩個字，一定有紅橙黃綠藍靛紫滿滿的鮮豔色彩喔～",
+                        praise: "沒錯！繽紛鮮豔的色彩與充滿祝福的吉祥話，讓老眷村變成了聞名國際的打卡景點！"
+                    },
+                    {
+                        q: "彩虹眷村最初是由哪位長輩拿起畫筆，一筆一畫把原本要拆掉的老眷村變成彩色世界的？",
+                        options: [
+                            "充滿童心的「彩虹爺爺」黃永阜先生 👨‍🎨",
+                            "從童話書裡跑出來的白雪公主 👸",
+                            "路過借廁所的外星畫家 👽"
+                        ],
+                        correct: 0,
+                        gentleHint: "再想想！大家都親切地稱呼這位拿水泥漆畫畫的老榮民伯伯為「彩虹〇〇」喔～",
+                        praise: "答對了！彩虹爺爺當年因為想念家鄉與排遣時光開始作畫，用滿滿的愛與色彩感動了全世界！"
+                    }
+                ]
+            }
+        ];
+
+        // =========================================================================
+        // 2. 遊戲狀態管理 (In-Memory State)
+        // =========================================================================
+        let gameState = {
+            soundEnabled: true,
+            // 每個島嶼的完成狀態：{ [islandId]: { completed: boolean, stars: number (0~2) } }
+            islandsProgress: {},
+            currentIslandId: null,
+            currentQuestionIdx: 0,
+            currentQuestionWrongCount: 0,
+            currentSessionStars: 0,
+            previewCertificateUnlocked: false
+        };
+
+        // 初始化進度物件
+        function initGameState() {
+            TAICHUNG_ISLANDS.forEach(island => {
+                gameState.islandsProgress[island.id] = {
+                    completed: false,
+                    stars: 0
+                };
+            });
+        }
+
+        // =========================================================================
+        // 3. Web Audio 溫暖童趣音效合成器（無須外部音檔，保證可離線播放）
+        // =========================================================================
+        let audioCtx = null;
+
+        function getAudioContext() {
+            if (!audioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioContextClass) {
+                    audioCtx = new AudioContextClass();
+                }
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        function playSoundEffect(type) {
+            if (!gameState.soundEnabled) return;
+            try {
+                const ctx = getAudioContext();
+                if (!ctx) return;
+                const now = ctx.currentTime;
+
+                if (type === 'click') {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(520, now);
+                    osc.frequency.exponentialRampToValueAtTime(680, now + 0.08);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.08);
+                } else if (type === 'correct') {
+                    // 叮咚歡快和弦
+                    const notes = [523.25, 659.25, 783.99, 1046.5];
+                    notes.forEach((freq, i) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, now + i * 0.07);
+                        gain.gain.setValueAtTime(0.15, now + i * 0.07);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.07 + 0.25);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(now + i * 0.07);
+                        osc.stop(now + i * 0.07 + 0.25);
+                    });
+                } else if (type === 'hint') {
+                    // 溫柔雙音提示（不刺耳）
+                    const notes = [440, 392];
+                    notes.forEach((freq, i) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(freq, now + i * 0.11);
+                        gain.gain.setValueAtTime(0.12, now + i * 0.11);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.11 + 0.2);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(now + i * 0.11);
+                        osc.stop(now + i * 0.11 + 0.2);
+                    });
+                } else if (type === 'stamp') {
+                    // 蓋章與升旗慶祝音效
+                    const notes = [523.25, 659.25, 783.99, 1046.5, 1318.5];
+                    notes.forEach((freq, i) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, now + i * 0.08);
+                        gain.gain.setValueAtTime(0.18, now + i * 0.08);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.35);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(now + i * 0.08);
+                        osc.stop(now + i * 0.08 + 0.35);
+                    });
+                }
+            } catch (e) {
+                // 忽略瀏覽器音效限制錯誤
+            }
+        }
+
+        function toggleSound() {
+            gameState.soundEnabled = !gameState.soundEnabled;
+            const btn = document.getElementById('soundToggleBtn');
+            btn.textContent = gameState.soundEnabled ? '🔊' : '🔇';
+            if (gameState.soundEnabled) playSoundEffect('click');
+        }
+
+        // =========================================================================
+        // 4. 手繪風小島 SVG 產生器（每座台中地標都有專屬手繪感插畫＋升旗動畫）
+        // =========================================================================
+        function getIslandIllustrationSVG(island, isCompleted = false) {
+            // 小紅旗 SVG（過關時升起）
+            const redFlagSvg = isCompleted ? `
+                <g class="flag-raised" transform="translate(132, 10)">
+                    <line x1="0" y1="0" x2="0" y2="38" stroke="#4a3b32" stroke-width="3.5" stroke-linecap="round"/>
+                    <path d="M0,2 L28,10 L0,19 Z" fill="#e65c4f" stroke="#4a3b32" stroke-width="2.5" stroke-linejoin="round"/>
+                    <circle cx="0" cy="2" r="3" fill="#fbbf24" stroke="#4a3b32" stroke-width="1.5"/>
+                </g>
+            ` : '';
+
+            // 各地標獨特手繪元素
+            let landmarkGraphic = '';
+            switch (island.svgType) {
+                case 'miyahara': // 宮原眼科：紅磚拱廊＋冰淇淋球
+                    landmarkGraphic = `
+                        <rect x="52" y="42" width="66" height="38" rx="4" fill="#d9534f" stroke="#4a3b32" stroke-width="2.5"/>
+                        <path d="M60,80 L60,58 A10,10 0 0,1 80,58 L80,80 Z" fill="#fffdf7" stroke="#4a3b32" stroke-width="2.5"/>
+                        <path d="M90,80 L90,58 A10,10 0 0,1 110,58 L110,80 Z" fill="#fffdf7" stroke="#4a3b32" stroke-width="2.5"/>
+                        <circle cx="85" cy="32" r="12" fill="#fbcfe8" stroke="#4a3b32" stroke-width="2.5"/>
+                        <circle cx="75" cy="36" r="9" fill="#fef08a" stroke="#4a3b32" stroke-width="2.5"/>
+                        <circle cx="85" cy="19" r="4" fill="#e65c4f" stroke="#4a3b32" stroke-width="2"/>
+                    `;
+                    break;
+                case 'gaomei': // 高美濕地：夕陽＋白色風車＋招潮蟹
+                    landmarkGraphic = `
+                        <circle cx="66" cy="52" r="18" fill="#fb923c" stroke="#4a3b32" stroke-width="2.5"/>
+                        <line x1="102" y1="32" x2="102" y2="78" stroke="#fffdf7" stroke-width="5" stroke-linecap="round"/>
+                        <line x1="102" y1="32" x2="102" y2="78" stroke="#4a3b32" stroke-width="2.5" stroke-linecap="round"/>
+                        <path d="M102,34 L88,20 M102,34 L118,24 M102,34 L100,50" stroke="#4a3b32" stroke-width="3" stroke-linecap="round"/>
+                        <circle cx="102" cy="34" r="3.5" fill="#e65c4f" stroke="#4a3b32" stroke-width="2"/>
+                        <ellipse cx="64" cy="76" rx="9" ry="6" fill="#e65c4f" stroke="#4a3b32" stroke-width="2"/>
+                        <path d="M53,72 C46,65 52,60 58,66" fill="#e65c4f" stroke="#4a3b32" stroke-width="2"/>
+                    `;
+                    break;
+                case 'luce': // 路思義教堂：雙手合十黃金曲線＋十字架
+                    landmarkGraphic = `
+                        <path d="M55,80 Q72,30 85,24 Q98,30 115,80 Z" fill="#f59e0b" stroke="#4a3b32" stroke-width="2.5" stroke-linejoin="round"/>
+                        <path d="M68,80 Q80,38 85,26 Q90,38 102,80 Z" fill="#fbbf24" stroke="#4a3b32" stroke-width="2"/>
+                        <line x1="85" y1="26" x2="85" y2="80" stroke="#4a3b32" stroke-width="2"/>
+                        <line x1="85" y1="12" x2="85" y2="24" stroke="#4a3b32" stroke-width="2.5" stroke-linecap="round"/>
+                        <line x1="80" y1="16" x2="90" y2="16" stroke="#4a3b32" stroke-width="2.5" stroke-linecap="round"/>
+                    `;
+                    break;
+                case 'shenji': // 審計新村：斜屋頂老宿舍＋文創小掛旗
+                    landmarkGraphic = `
+                        <rect x="48" y="50" width="42" height="30" fill="#fffdf7" stroke="#4a3b32" stroke-width="2.5"/>
+                        <polygon points="44,50 69,30 94,50" fill="#e11d48" stroke="#4a3b32" stroke-width="2.5" stroke-linejoin="round"/>
+                        <rect x="86" y="55" width="34" height="25" fill="#fef3c7" stroke="#4a3b32" stroke-width="2.5"/>
+                        <polygon points="83,55 103,40 123,55" fill="#fb923c" stroke="#4a3b32" stroke-width="2.5" stroke-linejoin="round"/>
+                        <rect x="62" y="60" width="14" height="20" fill="#93c5fd" stroke="#4a3b32" stroke-width="2"/>
+                    `;
+                    break;
+                case 'fengjia': // 逢甲夜市：燈籠招牌＋章魚小丸子竹籤
+                    landmarkGraphic = `
+                        <rect x="52" y="36" width="66" height="14" rx="4" fill="#ea580c" stroke="#4a3b32" stroke-width="2.5"/>
+                        <circle cx="64" cy="64" r="10" fill="#fcd34d" stroke="#4a3b32" stroke-width="2.5"/>
+                        <circle cx="85" cy="64" r="10" fill="#fcd34d" stroke="#4a3b32" stroke-width="2.5"/>
+                        <circle cx="106" cy="64" r="10" fill="#fcd34d" stroke="#4a3b32" stroke-width="2.5"/>
+                        <path d="M58,62 Q64,56 70,62 M79,62 Q85,56 91,62 M100,62 Q106,56 112,62" stroke="#b45309" stroke-width="2" fill="none"/>
+                        <line x1="45" y1="64" x2="122" y2="64" stroke="#4a3b32" stroke-width="2"/>
+                    `;
+                    break;
+                case 'guguan': // 谷關溫泉：翠綠山谷＋暖呼呼溫泉煙霧
+                    landmarkGraphic = `
+                        <polygon points="42,78 68,34 94,78" fill="#4ade80" stroke="#4a3b32" stroke-width="2.5" stroke-linejoin="round"/>
+                        <polygon points="76,78 102,38 128,78" fill="#22c55e" stroke="#4a3b32" stroke-width="2.5" stroke-linejoin="round"/>
+                        <ellipse cx="85" cy="76" rx="28" ry="8" fill="#7dd3fc" stroke="#4a3b32" stroke-width="2.5"/>
+                        <path d="M75,66 Q71,58 77,52 M85,66 Q81,58 87,52 M95,66 Q91,58 97,52" stroke="#e65c4f" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+                    `;
+                    break;
+                case 'opera': // 台中國家歌劇院：曲牆與弧形美聲涵洞
+                    landmarkGraphic = `
+                        <rect x="48" y="34" width="74" height="46" rx="14" fill="#fffdf7" stroke="#4a3b32" stroke-width="2.5"/>
+                        <path d="M58,80 C58,52 78,52 78,80" fill="#93c5fd" stroke="#4a3b32" stroke-width="2.5"/>
+                        <path d="M88,80 C88,56 110,56 110,80" fill="#c7d2fe" stroke="#4a3b32" stroke-width="2.5"/>
+                        <circle cx="84" cy="44" r="6" fill="#fde68a" stroke="#4a3b32" stroke-width="2"/>
+                    `;
+                    break;
+                case 'pavilion': // 台中公園湖心亭：雙併尖頂涼亭
+                    landmarkGraphic = `
+                        <rect x="56" y="56" width="58" height="22" fill="#fffdf7" stroke="#4a3b32" stroke-width="2.5"/>
+                        <polygon points="46,56 70,30 94,56" fill="#dc2626" stroke="#4a3b32" stroke-width="2.5" stroke-linejoin="round"/>
+                        <polygon points="76,56 100,30 124,56" fill="#dc2626" stroke="#4a3b32" stroke-width="2.5" stroke-linejoin="round"/>
+                        <line x1="65" y1="56" x2="65" y2="78" stroke="#4a3b32" stroke-width="2.5"/>
+                        <line x1="85" y1="56" x2="85" y2="78" stroke="#4a3b32" stroke-width="2.5"/>
+                        <line x1="105" y1="56" x2="105" y2="78" stroke="#4a3b32" stroke-width="2.5"/>
+                    `;
+                    break;
+                case 'bikeway': // 后豐鐵馬道：花梁鋼橋與單車輪
+                    landmarkGraphic = `
+                        <path d="M44,72 L56,46 L72,72 L86,46 L100,72 L114,46 L126,72 Z" fill="none" stroke="#0284c7" stroke-width="3" stroke-linejoin="round"/>
+                        <line x1="56" y1="46" x2="114" y2="46" stroke="#0284c7" stroke-width="3"/>
+                        <circle cx="72" cy="70" r="8" fill="#fef08a" stroke="#4a3b32" stroke-width="2.5"/>
+                        <circle cx="98" cy="70" r="8" fill="#fef08a" stroke="#4a3b32" stroke-width="2.5"/>
+                        <path d="M72,70 L85,58 L98,70" fill="none" stroke="#e65c4f" stroke-width="2.5" stroke-linecap="round"/>
+                    `;
+                    break;
+                case 'rainbow': // 彩虹眷村：繽紛彩虹屋與笑臉
+                    landmarkGraphic = `
+                        <path d="M48,78 A37,37 0 0,1 122,78" fill="none" stroke="#ef4444" stroke-width="5"/>
+                        <path d="M54,78 A31,31 0 0,1 116,78" fill="none" stroke="#f59e0b" stroke-width="5"/>
+                        <path d="M60,78 A25,25 0 0,1 110,78" fill="none" stroke="#10b981" stroke-width="5"/>
+                        <rect x="66" y="52" width="38" height="28" rx="4" fill="#f472b6" stroke="#4a3b32" stroke-width="2.5"/>
+                        <circle cx="79" cy="63" r="2.5" fill="#4a3b32"/>
+                        <circle cx="91" cy="63" r="2.5" fill="#4a3b32"/>
+                        <path d="M78,70 Q85,76 92,70" fill="none" stroke="#4a3b32" stroke-width="2.5" stroke-linecap="round"/>
+                    `;
+                    break;
+            }
+
+            return `
+                <svg viewBox="0 0 170 115" class="w-full h-full overflow-visible">
+                    <!-- 海浪波紋底座 -->
+                    <path d="M12,96 Q35,103 58,96 T104,96 T156,96" fill="none" stroke="#7dd3fc" stroke-width="3" stroke-linecap="round"/>
+                    <!-- 手繪小島陸地 -->
+                    <path d="M22,88 C18,70 42,64 85,64 C128,64 152,70 148,88 C144,98 118,100 85,100 C52,100 26,98 22,88 Z" 
+                          fill="${island.islandColor}" stroke="#4a3b32" stroke-width="3"/>
+                    <!-- 島上特色建築插畫 -->
+                    ${landmarkGraphic}
+                    <!-- 過關小紅旗 -->
+                    ${redFlagSvg}
+                </svg>
+            `;
+        }
+
+        // =========================================================================
+        // 5. 渲染主地圖與進度統計
+        // =========================================================================
+        function renderMapAndStats() {
+            const grid = document.getElementById('islandsGrid');
+            grid.innerHTML = '';
+
+            let completedCount = 0;
+            let totalStars = 0;
+
+            TAICHUNG_ISLANDS.forEach(island => {
+                const prog = gameState.islandsProgress[island.id];
+                if (prog.completed) completedCount++;
+                totalStars += prog.stars;
+
+                const card = document.createElement('div');
+                card.className = `island-card hand-drawn-card p-4 flex flex-col justify-between relative overflow-hidden ${
+                    prog.completed ? 'bg-[#fffef5] ring-2 ring-[#f59e0b]' : 'bg-[#fffdf7]'
+                }`;
+                card.onclick = () => openIslandQuiz(island.id);
+
+                // 星星顯示
+                let starsHtml = '';
+                for (let s = 1; s <= 2; s++) {
+                    starsHtml += `<span class="text-base ${s <= prog.stars ? 'opacity-100' : 'opacity-25 grayscale'}">⭐</span>`;
+                }
+
+                card.innerHTML = `
+                    <!-- 頂部編號與過關印記 -->
+                    <div class="flex items-center justify-between gap-1 mb-1">
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-black border-2 border-[#4a3b32] bg-white">
+                            第 ${island.id} 島
+                        </span>
+                        <div class="flex items-center gap-1">
+                            ${starsHtml}
+                        </div>
+                    </div>
+
+                    <!-- 手繪小島 SVG 圖 -->
+                    <div class="island-svg-wrap w-full h-28 my-1 transition-transform duration-300">
+                        ${getIslandIllustrationSVG(island, prog.completed)}
+                    </div>
+
+                    <!-- 小島名稱與地區 -->
+                    <div class="text-center mt-1">
+                        <div class="text-[11px] font-bold text-[#786254]">${island.area}</div>
+                        <h3 class="text-lg font-black text-[#4a3b32] flex items-center justify-center gap-1">
+                            <span>${island.emoji}</span>
+                            <span>${island.name}</span>
+                        </h3>
+                    </div>
+
+                    <!-- 底部行動按鈕或已蓋章標籤 -->
+                    <div class="mt-3 pt-2.5 border-t-2 border-dashed border-[#4a3b32]/20 flex items-center justify-between">
+                        ${
+                            prog.completed
+                                ? `<span class="inline-flex items-center gap-1 text-xs font-black text-[#d93829] bg-[#fee2e2] px-2.5 py-1 rounded-full border border-[#d93829]">
+                                     💮 已蓋知識章
+                                   </span>
+                                   <span class="text-xs font-bold text-[#6b5648] underline">重玩 🚩</span>`
+                                : `<span class="text-xs font-bold text-[#6b5648]">答 2 題蓋知識章</span>
+                                   <span class="bg-[#fde68a] border border-[#4a3b32] px-2.5 py-0.5 rounded-full text-xs font-black">登島 ➜</span>`
+                        }
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            });
+
+            // 更新頂部統計數字與進度條
+            document.getElementById('stampCountText').textContent = completedCount;
+            document.getElementById('starCountText').textContent = totalStars;
+
+            const pct = Math.round((completedCount / TAICHUNG_ISLANDS.length) * 100);
+            document.getElementById('progressPercentText').textContent = `${pct}%`;
+            document.getElementById('progressBarFill').style.width = `${pct}%`;
+
+            // 更新橫幅標語
+            const bannerTitle = document.getElementById('welcomeBannerTitle');
+            const bannerSub = document.getElementById('welcomeBannerSub');
+            const certNavBtn = document.getElementById('certNavBtn');
+
+            if (completedCount === TAICHUNG_ISLANDS.length) {
+                bannerTitle.innerHTML = `🎉 恭喜你集滿 10 枚台中知識章！快點選右上角領取你的「探險家證書」吧！`;
+                bannerSub.innerHTML = `你一共獲得了 ${totalStars} / 20 顆滿分星星 ⭐，也可以隨時點選小島重玩挑戰 20 顆星滿分喔！`;
+                certNavBtn.classList.add('animate-bounce');
+            } else if (completedCount > 0) {
+                bannerTitle.innerHTML = `🚩 太棒了！你已經插上 ${completedCount} 面小紅旗，還差 ${10 - completedCount} 座小島就能領取探險家證書！`;
+                bannerSub.innerHTML = `繼續點選還沒插旗的小島，讀一句「只有它才有的事」吧！`;
+                certNavBtn.classList.remove('animate-bounce');
+            } else {
+                bannerTitle.innerHTML = `🧭 小小探險家，準備好出發探索 10 座台中小島了嗎？`;
+                bannerSub.innerHTML = `任意點選下方一座小島開始闖關！一次就答對題目還能多拿一顆閃亮星星 ⭐ 喔！`;
+                certNavBtn.classList.remove('animate-bounce');
+            }
+        }
+
+        // =========================================================================
+        // 6. 島嶼問答闖關流程（溫柔提示＋一次答對拿星星＋蓋章升旗）
+        // =========================================================================
+        function openIslandQuiz(islandId) {
+            playSoundEffect('click');
+            const island = TAICHUNG_ISLANDS.find(item => item.id === islandId);
+            if (!island) return;
+
+            gameState.currentIslandId = islandId;
+            gameState.currentQuestionIdx = 0;
+            gameState.currentQuestionWrongCount = 0;
+            gameState.currentSessionStars = 0;
+
+            document.getElementById('modalIslandBadge').textContent = `第 ${island.id} 島`;
+            document.getElementById('modalIslandArea').textContent = island.area;
+            document.getElementById('modalIslandName').textContent = `${island.emoji} ${island.name}`;
+            document.getElementById('modalIslandUniqueFact').textContent = island.uniqueFact;
+            document.getElementById('modalIslandSvg').innerHTML = getIslandIllustrationSVG(
+                island,
+                gameState.islandsProgress[islandId].completed
+            );
+
+            document.getElementById('quizSection').classList.remove('hidden');
+            document.getElementById('islandCompleteSection').classList.add('hidden');
+
+            renderCurrentQuestion();
+
+            const modal = document.getElementById('islandModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function renderCurrentQuestion() {
+            const island = TAICHUNG_ISLANDS.find(item => item.id === gameState.currentIslandId);
+            const qIndex = gameState.currentQuestionIdx;
+            const qObj = island.questions[qIndex];
+
+            gameState.currentQuestionWrongCount = 0;
+
+            document.getElementById('questionStepBadge').textContent = `第 ${qIndex + 1} / 2 題`;
+            document.getElementById('firstTryStarHint').innerHTML = `⭐ 一次答對可得滿分星星！`;
+
+            // 更新進度圓點
+            const dotsHtml = [0, 1].map(idx => {
+                if (idx < qIndex) {
+                    return `<span class="w-3.5 h-3.5 rounded-full border-2 border-[#4a3b32] bg-[#4ade80]"></span>`;
+                } else if (idx === qIndex) {
+                    return `<span class="w-3.5 h-3.5 rounded-full border-2 border-[#4a3b32] bg-[#fbbf24]"></span>`;
+                }
+                return `<span class="w-3.5 h-3.5 rounded-full border-2 border-[#4a3b32] bg-white"></span>`;
+            }).join('');
+            document.getElementById('questionDots').innerHTML = dotsHtml;
+
+            document.getElementById('questionText').textContent = qObj.q;
+
+            // 隱藏提示框與下一題按鈕
+            const feedbackBox = document.getElementById('feedbackBox');
+            feedbackBox.classList.add('hidden');
+            document.getElementById('nextQuestionBtn').classList.add('hidden');
+
+            // 渲染 3 個幽默選項
+            const optionsContainer = document.getElementById('optionsContainer');
+            optionsContainer.innerHTML = '';
+
+            const labels = ['A', 'B', 'C'];
+            qObj.options.forEach((optText, idx) => {
+                const btn = document.createElement('button');
+                btn.className = `w-full text-left hand-drawn-btn bg-white hover:bg-[#fef9c3] p-3.5 flex items-center gap-3 font-bold text-sm sm:text-base`;
+                btn.innerHTML = `
+                    <span class="w-7 h-7 rounded-xl bg-[#fef3c7] border-2 border-[#4a3b32] flex items-center justify-center font-black text-xs shrink-0">
+                        ${labels[idx]}
+                    </span>
+                    <span class="flex-1">${optText}</span>
+                `;
+                btn.onclick = () => handleOptionSelect(idx, btn);
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        function handleOptionSelect(selectedIndex, btnElement) {
+            const island = TAICHUNG_ISLANDS.find(item => item.id === gameState.currentIslandId);
+            const qObj = island.questions[gameState.currentQuestionIdx];
+            const feedbackBox = document.getElementById('feedbackBox');
+            const feedbackEmoji = document.getElementById('feedbackEmoji');
+            const feedbackTitle = document.getElementById('feedbackTitle');
+            const feedbackDesc = document.getElementById('feedbackDesc');
+            const nextBtn = document.getElementById('nextQuestionBtn');
+
+            if (selectedIndex === qObj.correct) {
+                // 答對了！
+                playSoundEffect('correct');
+
+                // 若第一次就選對，獲得一顆星星
+                const earnedStarThisQ = gameState.currentQuestionWrongCount === 0;
+                if (earnedStarThisQ) {
+                    gameState.currentSessionStars += 1;
+                }
+
+                // 鎖定所有選項按鈕並標示正確答案
+                const allBtns = document.getElementById('optionsContainer').querySelectorAll('button');
+                allBtns.forEach((b, idx) => {
+                    b.disabled = true;
+                    if (idx === qObj.correct) {
+                        b.classList.remove('bg-white', 'hover:bg-[#fef9c3]');
+                        b.classList.add('bg-[#bbf7d0]');
+                    } else {
+                        b.classList.add('opacity-50');
+                    }
+                });
+
+                feedbackBox.className = 'rounded-2xl p-4 border-2 border-[#4a3b32] mb-4 bg-[#dcfce7]';
+                feedbackEmoji.textContent = earnedStarThisQ ? '🌟' : '🎉';
+                feedbackTitle.textContent = earnedStarThisQ
+                    ? '一次就答對！獲得 1 顆閃亮星星 ⭐'
+                    : '太棒了！你找到正確答案囉！';
+                feedbackDesc.textContent = qObj.praise;
+                feedbackBox.classList.remove('hidden');
+
+                // 顯示下一題或蓋章按鈕
+                if (gameState.currentQuestionIdx === 0) {
+                    nextBtn.textContent = '挑戰第 2 題 ➜';
+                } else {
+                    nextBtn.textContent = '蓋下「知識章」並升起小紅旗 💮🚩';
+                }
+                nextBtn.classList.remove('hidden');
+            } else {
+                // 答錯時不說「錯」，給一個溫柔提示！
+                playSoundEffect('hint');
+                gameState.currentQuestionWrongCount += 1;
+
+                btnElement.disabled = true;
+                btnElement.classList.remove('bg-white', 'hover:bg-[#fef9c3]');
+                btnElement.classList.add('bg-[#f3f0e6]', 'opacity-60', 'gentle-shake');
+
+                document.getElementById('firstTryStarHint').innerHTML = `💡 看完溫柔提示再選一次吧！`;
+
+                feedbackBox.className = 'rounded-2xl p-4 border-2 border-[#4a3b32] mb-4 bg-[#fef3c7] gentle-shake';
+                feedbackEmoji.textContent = '🤗';
+                feedbackTitle.textContent = '別急別急，我們再想一下！';
+                feedbackDesc.textContent = qObj.gentleHint;
+                feedbackBox.classList.remove('hidden');
+            }
+        }
+
+        function goToNextStep() {
+            playSoundEffect('click');
+            if (gameState.currentQuestionIdx === 0) {
+                gameState.currentQuestionIdx = 1;
+                renderCurrentQuestion();
+            } else {
+                completeCurrentIsland();
+            }
+        }
+
+        function completeCurrentIsland() {
+            playSoundEffect('stamp');
+            const island = TAICHUNG_ISLANDS.find(item => item.id === gameState.currentIslandId);
+            const prevProg = gameState.islandsProgress[island.id];
+
+            // 更新最佳星星紀錄與完成狀態
+            prevProg.completed = true;
+            prevProg.stars = Math.max(prevProg.stars, gameState.currentSessionStars);
+
+            // 更新彈窗頂部小島插畫（升起小紅旗！）
+            document.getElementById('modalIslandSvg').innerHTML = getIslandIllustrationSVG(island, true);
+
+            // 切換至蓋章慶祝畫面
+            document.getElementById('quizSection').classList.add('hidden');
+            const completeSec = document.getElementById('islandCompleteSection');
+            completeSec.classList.remove('hidden');
+
+            document.getElementById('stampEmoji').textContent = island.emoji;
+            document.getElementById('stampTitleText').textContent = island.stampName;
+
+            const starsStr = '⭐'.repeat(gameState.currentSessionStars);
+            document.getElementById('islandEarnedStarsText').textContent =
+                gameState.currentSessionStars === 2
+                    ? `太厲害了！兩題都一次答對，拿下滿分 2 顆星星 ${starsStr}！`
+                    : gameState.currentSessionStars === 1
+                    ? `這次獲得了 1 顆星星 ${starsStr}！隨時可以重玩挑戰 2 顆滿分星星喔！`
+                    : `成功蓋下知識章！如果想收集滿分星星，可以點選「再玩一次」喔！`;
+
+            // 同步更新背景主地圖與 3D 島嶼旗幟
+            renderMapAndStats();
+            update3DFlagsAndLabels();
+        }
+
+        function replayCurrentIsland() {
+            if (gameState.currentIslandId) {
+                openIslandQuiz(gameState.currentIslandId);
+            }
+        }
+
+        function closeIslandModal() {
+            playSoundEffect('click');
+            const modal = document.getElementById('islandModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+
+            // 如果剛剛好集滿 10 個章，主動打開證書視窗慶祝！
+            const completedCount = Object.values(gameState.islandsProgress).filter(p => p.completed).length;
+            if (completedCount === TAICHUNG_ISLANDS.length && !gameState.hasShownAutoCert) {
+                gameState.hasShownAutoCert = true;
+                setTimeout(() => {
+                    openCertificateModal();
+                }, 350);
+            }
+        }
+
+        // =========================================================================
+        // 7. 集章冊視窗
+        // =========================================================================
+        function openStampBook() {
+            playSoundEffect('click');
+            const grid = document.getElementById('stampBookGrid');
+            grid.innerHTML = '';
+
+            TAICHUNG_ISLANDS.forEach(island => {
+                const prog = gameState.islandsProgress[island.id];
+                const item = document.createElement('div');
+                item.className = `p-3 rounded-2xl border-2 border-[#4a3b32] flex flex-col items-center justify-between text-center ${
+                    prog.completed ? 'bg-[#fffbeb]' : 'bg-[#f3f0e6] opacity-75'
+                }`;
+
+                const starsDisplay = prog.completed
+                    ? `<div>${'⭐'.repeat(prog.stars)}${'☆'.repeat(2 - prog.stars)}</div>`
+                    : `<div class="text-[11px] text-[#786254]">尚未蓋章</div>`;
+
+                item.innerHTML = `
+                    <span class="text-[11px] font-bold text-[#786254]">第 ${island.id} 島</span>
+                    <div class="my-2 w-20 h-20 rounded-full flex flex-col items-center justify-center ${
+                        prog.completed
+                            ? 'border-4 double border-[#d93829] text-[#d93829] bg-[#fff5f5] rotate-[-8deg] shadow-xs'
+                            : 'border-2 border-dashed border-[#4a3b32]/40 text-[#786254]'
+                    }">
+                        <span class="text-2xl">${prog.completed ? island.emoji : '❔'}</span>
+                        <span class="text-[10px] font-black mt-0.5">${prog.completed ? island.stampName : island.name}</span>
+                    </div>
+                    <div class="text-xs font-black text-[#4a3b32]">${island.name}</div>
+                    <div class="text-xs font-bold text-amber-600 mt-0.5">${starsDisplay}</div>
+                `;
+                grid.appendChild(item);
+            });
+
+            const modal = document.getElementById('stampBookModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeStampBook() {
+            playSoundEffect('click');
+            const modal = document.getElementById('stampBookModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // =========================================================================
+        // 8. 探險家證書繪製與下載 (Canvas 動態合成手繪風獎狀)
+        // =========================================================================
+        function openCertificateModal() {
+            playSoundEffect('click');
+            const completedCount = Object.values(gameState.islandsProgress).filter(p => p.completed).length;
+            const lockedView = document.getElementById('certLockedView');
+            const unlockedView = document.getElementById('certUnlockedView');
+
+            if (completedCount === TAICHUNG_ISLANDS.length || gameState.previewCertificateUnlocked) {
+                lockedView.classList.add('hidden');
+                unlockedView.classList.remove('hidden');
+                renderCertificateCanvas();
+            } else {
+                lockedView.classList.remove('hidden');
+                unlockedView.classList.add('hidden');
+                document.getElementById('certLockedProgress').textContent =
+                    `目前已經收集了 ${completedCount} / 10 枚知識章`;
+            }
+
+            const modal = document.getElementById('certificateModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function unlockPreviewCertificate() {
+            playSoundEffect('stamp');
+            gameState.previewCertificateUnlocked = true;
+            openCertificateModal();
+        }
+
+        function closeCertificateModal() {
+            playSoundEffect('click');
+            const modal = document.getElementById('certificateModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function renderCertificateCanvas() {
+            const canvas = document.getElementById('certificateCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const nameInput = document.getElementById('explorerNameInput').value.trim() || '小小探險家';
+
+            let completedCount = 0;
+            let totalStars = 0;
+            TAICHUNG_ISLANDS.forEach(island => {
+                const p = gameState.islandsProgress[island.id];
+                if (p.completed) completedCount++;
+                totalStars += p.stars;
+            });
+
+            // 若是預覽模式且尚未集滿，顯示示範滿章數
+            const displayStamps = completedCount === 0 ? 10 : completedCount;
+            const displayStars = totalStars === 0 ? 20 : totalStars;
+
+            // 1. 溫暖米黃紙張背景
+            ctx.fillStyle = '#fffdf7';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 2. 外框與手繪感雙層裝飾線
+            ctx.strokeStyle = '#4a3b32';
+            ctx.lineWidth = 8;
+            ctx.strokeRect(24, 24, canvas.width - 48, canvas.height - 48);
+
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(38, 38, canvas.width - 76, canvas.height - 76);
+
+            // 四角裝飾圓點
+            const corners = [[52, 52], [canvas.width - 52, 52], [52, canvas.height - 52], [canvas.width - 52, canvas.height - 52]];
+            corners.forEach(([cx, cy]) => {
+                ctx.beginPath();
+                ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+                ctx.fillStyle = '#e65c4f';
+                ctx.fill();
+                ctx.strokeStyle = '#4a3b32';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+
+            // 3. 頂部彩帶標題
+            ctx.fillStyle = '#fde68a';
+            ctx.strokeStyle = '#4a3b32';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.roundRect(230, 62, 440, 64, 32);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#4a3b32';
+            ctx.font = '900 34px "Zen Maru Gothic", "Noto Sans TC", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('🏝️ 台中一日島・探險家證書 🚩', canvas.width / 2, 106);
+
+            // 4. 探險家姓名與表揚文字
+            ctx.fillStyle = '#786254';
+            ctx.font = '700 20px "Zen Maru Gothic", "Noto Sans TC", sans-serif';
+            ctx.fillText('茲證明熱愛家鄉的小小探險家', canvas.width / 2, 168);
+
+            // 名字底線與高亮
+            ctx.fillStyle = '#d93829';
+            ctx.font = '900 48px "Zen Maru Gothic", "Noto Sans TC", sans-serif';
+            ctx.fillText(nameInput, canvas.width / 2, 232);
+
+            ctx.strokeStyle = '#4a3b32';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(280, 248);
+            ctx.lineTo(620, 248);
+            ctx.stroke();
+
+            ctx.fillStyle = '#4a3b32';
+            ctx.font = '700 20px "Zen Maru Gothic", "Noto Sans TC", sans-serif';
+            ctx.fillText(
+                `成功探索台中 10 座特色島嶼，集滿 ${displayStamps} 枚知識章與 ${displayStars} 顆榮譽星星 ⭐`,
+                canvas.width / 2,
+                292
+            );
+            ctx.fillStyle = '#6b5648';
+            ctx.font = '500 17px "Zen Maru Gothic", "Noto Sans TC", sans-serif';
+            ctx.fillText(
+                '從宮原眼科、高美濕地、路思義教堂到彩虹眷村，把對台中的感情化為滿滿的知識收穫！',
+                canvas.width / 2,
+                326
+            );
+
+            // 5. 繪製 10 枚小知識章印記（分兩排各 5 枚）
+            TAICHUNG_ISLANDS.forEach((island, idx) => {
+                const row = Math.floor(idx / 5);
+                const col = idx % 5;
+                const centerX = 150 + col * 150;
+                const centerY = 398 + row * 98;
+
+                // 印章圓圈
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(-0.08);
+
+                ctx.beginPath();
+                ctx.arc(0, 0, 38, 0, Math.PI * 2);
+                ctx.fillStyle = '#fff5f5';
+                ctx.fill();
+                ctx.lineWidth = 2.5;
+                ctx.strokeStyle = '#d93829';
+                ctx.stroke();
+
+                ctx.font = '22px sans-serif';
+                ctx.fillText(island.emoji, 0, -4);
+
+                ctx.fillStyle = '#d93829';
+                ctx.font = '900 12px "Zen Maru Gothic", "Noto Sans TC", sans-serif';
+                ctx.fillText(island.name, 0, 18);
+                ctx.restore();
+            });
+
+            // 6. 日期與總認證章
+            const today = new Date();
+            const dateStr = `${today.getFullYear()} 年 ${today.getMonth() + 1} 月 ${today.getDate()} 日`;
+            ctx.fillStyle = '#4a3b32';
+            ctx.font = '700 16px "Zen Maru Gothic", "Noto Sans TC", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(`📅 頒發日期：${dateStr}`, 75, 578);
+
+            ctx.textAlign = 'right';
+            ctx.fillText(`💮 台中一日島知識探險團 認證`, canvas.width - 75, 578);
+        }
+
+        function downloadCertificateImage() {
+            playSoundEffect('stamp');
+            renderCertificateCanvas();
+            const canvas = document.getElementById('certificateCanvas');
+            const nameInput = document.getElementById('explorerNameInput').value.trim() || '小小探險家';
+            const link = document.createElement('a');
+            link.download = `台中一日島探險家證書_${nameInput}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        // =========================================================================
+        // 9. 五步驟心法與 AI 提示詞複製、重新開始功能
+        // =========================================================================
+        function openMethodModal() {
+            playSoundEffect('click');
+            const modal = document.getElementById('methodModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeMethodModal() {
+            playSoundEffect('click');
+            const modal = document.getElementById('methodModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function copyAiPromptTemplate() {
+            const promptText = `請幫我製作一個手繪風格的互動網頁小遊戲「我的家鄉一日島」。
+以下是我們家鄉的地方與故事：
+1. 我們選出的 5～10 個家鄉地點與「只有它才有的事」：（請在這裡填入地點與一句特色故事）
+2. 每個地點請設計 2 題選擇題，錯誤選項要幽默有趣，讓孩子會笑著選出正確答案。
+3. 當孩子答錯時，千萬不要說「錯」，請給一句溫柔的線索提示。
+4. 完成一座小島就蓋上一枚「知識章」並升起小紅旗，一次答對還能多拿星星。
+5. 集滿所有印章後，可以輸入名字領取並下載專屬的「探險家證書」。`;
+
+            const tempArea = document.createElement('textarea');
+            tempArea.value = promptText;
+            document.body.appendChild(tempArea);
+            tempArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempArea);
+
+            const btn = document.getElementById('copyPromptBtn');
+            btn.textContent = '✅ 已複製提示詞模板！';
+            btn.classList.add('bg-[#bbf7d0]');
+            setTimeout(() => {
+                btn.textContent = '📋 複製 AI 提示詞模板';
+                btn.classList.remove('bg-[#bbf7d0]');
+            }, 2500);
+        }
+
+        function resetGameConfirm() {
+            playSoundEffect('click');
+            const modal = document.getElementById('resetConfirmModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeResetConfirm() {
+            playSoundEffect('click');
+            const modal = document.getElementById('resetConfirmModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function confirmResetGame() {
+            playSoundEffect('stamp');
+            initGameState();
+            gameState.hasShownAutoCert = false;
+            gameState.previewCertificateUnlocked = false;
+            renderMapAndStats();
+            update3DFlagsAndLabels();
+            closeResetConfirm();
+        }
+
+        // =========================================================================
+        // 10. Three.js 3D 立體台中群島場景與互動控制
+        // =========================================================================
+        let scene3D, camera3D, renderer3D;
+        let islandGroups3D = []; // 儲存 10 座 3D 島嶼物件與動畫狀態
+        let cloudGroups3D = [];
+        let windmillBlades3D = [];
+        let seaWavesMesh = null;
+        let raycaster3D = new THREE.Raycaster();
+        let mouseVec3D = new THREE.Vector2();
+
+        // 3D 探險家角色與跨海道路連線狀態
+        let explorerPlayer = {
+            mesh: null,
+            leftLeg: null,
+            rightLeg: null,
+            leftArm: null,
+            rightArm: null,
+            currentIslandId: 1,
+            isWalking: false,
+            walkSegments: [],      // 儲存角色沿道路前進的曲線段 [{ curve, fromId, toId }]
+            currentSegIdx: 0,
+            segmentProgress: 0,    // 0 ~ 1
+            openQuizOnArrive: true
+        };
+        // 儲存相鄰島嶼之間的 3D 拱橋曲線，讓角色沿著橋面高度行走
+        let islandBridgeCurves = {};
+
+        // 攝影機球面座標與目標焦點（支援滑鼠/觸控旋轉與飛往指定島嶼）
+        let camControl = {
+            isDragging: false,
+            dragDistance: 0,
+            prevX: 0,
+            prevY: 0,
+            theta: 0.15,        // 水平旋轉角
+            phi: 0.92,          // 垂直俯仰角
+            radius: 46,         // 距離
+            targetTheta: 0.15,
+            targetPhi: 0.92,
+            targetRadius: 46,
+            lookAtPos: new THREE.Vector3(0, 0, 2),
+            targetLookAt: new THREE.Vector3(0, 0, 2)
+        };
+
+        // 10 座島嶼在 3D 海面上的蜿蜒探險路線座標（1 -> 2 -> 3 -> 4 -> 8 -> 7 -> 6 -> 5 -> 9 -> 10）
+        // 排成順暢的 S 型巡迴路線，讓道路連線清晰美觀不打結！
+        const ISLAND_3D_POSITIONS = [
+            { x: -20, z: -12 },  // 1 宮原眼科
+            { x: -7,  z: -15 },  // 2 高美濕地
+            { x: 7,   z: -15 },  // 3 路思義教堂
+            { x: 20,  z: -11 },  // 4 審計新村
+            { x: 18,  z: 1 },    // 5 逢甲夜市
+            { x: 5,   z: -1 },   // 6 谷關溫泉
+            { x: -8,  z: 0 },    // 7 台中國家歌劇院
+            { x: -20, z: 3 },    // 8 台中公園湖心亭
+            { x: -9,  z: 13 },   // 9 后豐鐵馬道
+            { x: 10,  z: 13 }    // 10 彩虹眷村
+        ];
+
+        function switchMapMode(mode) {
+            playSoundEffect('click');
+            const wrapper3D = document.getElementById('ocean3DWrapper');
+            const grid2D = document.getElementById('islandsGrid');
+            const btn3D = document.getElementById('btnView3D');
+            const btn2D = document.getElementById('btnView2D');
+            const toolbar3D = document.getElementById('controls3DToolbar');
+
+            if (mode === '3d') {
+                wrapper3D.classList.remove('hidden');
+                grid2D.classList.add('hidden');
+                grid2D.classList.remove('grid');
+                toolbar3D.classList.remove('hidden');
+                btn3D.className = 'hand-drawn-btn bg-[#fde68a] px-4 py-2 text-xs sm:text-sm font-black flex items-center gap-1.5';
+                btn2D.className = 'hand-drawn-btn bg-white px-4 py-2 text-xs sm:text-sm font-bold flex items-center gap-1.5';
+                handle3DResize();
+            } else {
+                wrapper3D.classList.add('hidden');
+                grid2D.classList.remove('hidden');
+                grid2D.classList.add('grid');
+                toolbar3D.classList.add('hidden');
+                btn2D.className = 'hand-drawn-btn bg-[#fde68a] px-4 py-2 text-xs sm:text-sm font-black flex items-center gap-1.5';
+                btn3D.className = 'hand-drawn-btn bg-white px-4 py-2 text-xs sm:text-sm font-bold flex items-center gap-1.5';
+            }
+        }
+
+        function reset3DCamera() {
+            playSoundEffect('click');
+            camControl.targetTheta = 0.15;
+            camControl.targetPhi = 0.92;
+            camControl.targetRadius = 46;
+            camControl.targetLookAt.set(0, 0, 2);
+        }
+
+        function focusOn3DIsland(islandId) {
+            playSoundEffect('click');
+            const found = islandGroups3D.find(g => g.islandData.id === islandId);
+            if (!found) return;
+            const pos = found.group.position;
+            camControl.targetLookAt.set(pos.x, 1.5, pos.z);
+            camControl.targetRadius = 25;
+            camControl.targetPhi = 0.98;
+        }
+
+        // 建立相鄰兩座島嶼之間的 3D 跨海木棧道與步道路燈
+        function buildAllIslandRoads() {
+            islandBridgeCurves = {};
+            const plankMat = new THREE.MeshLambertMaterial({ color: 0xfde68a });
+            const railMat = new THREE.MeshLambertMaterial({ color: 0x92400e });
+            const ropeMat = new THREE.MeshLambertMaterial({ color: 0xf97316 });
+
+            for (let i = 0; i < ISLAND_3D_POSITIONS.length - 1; i++) {
+                const idA = i + 1;
+                const idB = i + 2;
+                const pA = ISLAND_3D_POSITIONS[i];
+                const pB = ISLAND_3D_POSITIONS[i + 1];
+
+                const startVec = new THREE.Vector3(pA.x, 0.72, pA.z);
+                const endVec = new THREE.Vector3(pB.x, 0.72, pB.z);
+                const midVec = new THREE.Vector3(
+                    (pA.x + pB.x) / 2,
+                    1.55, // 跨海拱橋微幅拱起
+                    (pA.z + pB.z) / 2
+                );
+
+                // 正向與反向曲線（供角色雙向行走）
+                const forwardCurve = new THREE.QuadraticBezierCurve3(startVec, midVec, endVec);
+                const backwardCurve = new THREE.QuadraticBezierCurve3(endVec, midVec, startVec);
+                islandBridgeCurves[`${idA}_${idB}`] = forwardCurve;
+                islandBridgeCurves[`${idB}_${idA}`] = backwardCurve;
+
+                const roadGroup = new THREE.Group();
+
+                // 兩側橋索護欄光軌
+                const tubeGeo = new THREE.TubeGeometry(forwardCurve, 24, 0.14, 8, false);
+                const roadBaseMesh = new THREE.Mesh(tubeGeo, ropeMat);
+                roadBaseMesh.position.y = -0.06;
+                roadGroup.add(roadBaseMesh);
+
+                // 沿著曲線鋪設一塊塊手繪感木棧板與小木樁
+                const plankCount = 16;
+                for (let step = 2; step <= plankCount - 2; step++) {
+                    const t = step / plankCount;
+                    const pt = forwardCurve.getPoint(t);
+                    const tangent = forwardCurve.getTangent(t);
+
+                    const plank = new THREE.Mesh(
+                        new THREE.BoxGeometry(1.15, 0.14, 0.48),
+                        plankMat
+                    );
+                    plank.position.copy(pt);
+                    plank.lookAt(pt.clone().add(tangent));
+                    roadGroup.add(plank);
+
+                    // 每隔幾步立一根海中小橋墩與小欄杆柱
+                    if (step % 4 === 0) {
+                        const pillar = new THREE.Mesh(
+                            new THREE.CylinderGeometry(0.1, 0.12, pt.y + 1.2, 8),
+                            railMat
+                        );
+                        pillar.position.set(pt.x, (pt.y - 1.2) / 2, pt.z);
+                        roadGroup.add(pillar);
+                    }
+                }
+
+                scene3D.add(roadGroup);
+            }
+        }
+
+        // 建立 3D 小小探險家角色模型（戴探險草帽、揹紅背包、手腳可擺動行走）
+        function createExplorerPlayerMesh() {
+            const playerGroup = new THREE.Group();
+
+            // 1. 身體（亮橘藍探險服）
+            const torso = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.32, 0.38, 0.75, 12),
+                new THREE.MeshLambertMaterial({ color: 0x0284c7 })
+            );
+            torso.position.y = 0.72;
+            playerGroup.add(torso);
+
+            // 2. 後背探險小背包
+            const backpack = new THREE.Mesh(
+                new THREE.BoxGeometry(0.46, 0.5, 0.28),
+                new THREE.MeshLambertMaterial({ color: 0xe65c4f })
+            );
+            backpack.position.set(0, 0.76, -0.32);
+            playerGroup.add(backpack);
+
+            // 3. 頭部
+            const head = new THREE.Mesh(
+                new THREE.SphereGeometry(0.36, 16, 16),
+                new THREE.MeshLambertMaterial({ color: 0xfde68a })
+            );
+            head.position.y = 1.38;
+            playerGroup.add(head);
+
+            // 眼睛（朝向 +Z 前方）
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0x4a3b32 });
+            const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 8), eyeMat);
+            leftEye.position.set(0.13, 1.42, 0.31);
+            const rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 8), eyeMat);
+            rightEye.position.set(-0.13, 1.42, 0.31);
+            playerGroup.add(leftEye, rightEye);
+
+            // 4. 探險家大草帽（帽簷＋帽頂＋紅緞帶）
+            const hatBrim = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.62, 0.62, 0.08, 16),
+                new THREE.MeshLambertMaterial({ color: 0xf59e0b })
+            );
+            hatBrim.position.y = 1.66;
+            playerGroup.add(hatBrim);
+
+            const hatCrown = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.34, 0.38, 0.28, 16),
+                new THREE.MeshLambertMaterial({ color: 0xfbbf24 })
+            );
+            hatCrown.position.y = 1.82;
+            playerGroup.add(hatCrown);
+
+            // 5. 左右手與左右腳（設好關節原點以便跑步擺動）
+            const limbMat = new THREE.MeshLambertMaterial({ color: 0x4a3b32 });
+            const armMat = new THREE.MeshLambertMaterial({ color: 0x38bdf8 });
+
+            const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.45, 8), limbMat);
+            leftLeg.position.set(0.16, 0.24, 0);
+            const rightLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.45, 8), limbMat);
+            rightLeg.position.set(-0.16, 0.24, 0);
+
+            const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.45, 8), armMat);
+            leftArm.position.set(0.42, 0.75, 0);
+            const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.45, 8), armMat);
+            rightArm.position.set(-0.42, 0.75, 0);
+
+            playerGroup.add(leftLeg, rightLeg, leftArm, rightArm);
+
+            // 6. 腳下金色探險光圈
+            const ringGeo = new THREE.RingGeometry(0.45, 0.62, 24);
+            const ringMat = new THREE.MeshBasicMaterial({
+                color: 0xfef08a,
+                side: THREE.DoubleSide
+            });
+            const footRing = new THREE.Mesh(ringGeo, ringMat);
+            footRing.rotation.x = Math.PI / 2;
+            footRing.position.y = 0.05;
+            playerGroup.add(footRing);
+
+            explorerPlayer.mesh = playerGroup;
+            explorerPlayer.leftLeg = leftLeg;
+            explorerPlayer.rightLeg = rightLeg;
+            explorerPlayer.leftArm = leftArm;
+            explorerPlayer.rightArm = rightArm;
+
+            // 初始站在第 1 島（宮原眼科）島邊道路起點
+            const startPos = ISLAND_3D_POSITIONS[0];
+            playerGroup.position.set(startPos.x, 0.75, startPos.z + 1.8);
+            scene3D.add(playerGroup);
+        }
+
+        // 指揮探險家角色沿著島嶼間的道路連線移動到目標島嶼
+        function walkPlayerToIsland(targetIslandId, openModalWhenArrived = true) {
+            if (targetIslandId < 1 || targetIslandId > TAICHUNG_ISLANDS.length) return;
+            playSoundEffect('click');
+
+            const startId = explorerPlayer.currentIslandId;
+            if (startId === targetIslandId && !explorerPlayer.isWalking) {
+                focusOn3DIsland(targetIslandId);
+                if (openModalWhenArrived) {
+                    openIslandQuiz(targetIslandId);
+                }
+                return;
+            }
+
+            // 計算沿著編號道路前進的每一段橋樑路徑（例如 1 -> 2 -> 3）
+            const segments = [];
+            const stepDir = targetIslandId > startId ? 1 : -1;
+            let curr = startId;
+            while (curr !== targetIslandId) {
+                const next = curr + stepDir;
+                const key = `${curr}_${next}`;
+                if (islandBridgeCurves[key]) {
+                    segments.push({
+                        curve: islandBridgeCurves[key],
+                        fromId: curr,
+                        toId: next
+                    });
+                }
+                curr = next;
+            }
+
+            if (segments.length > 0) {
+                explorerPlayer.walkSegments = segments;
+                explorerPlayer.currentSegIdx = 0;
+                explorerPlayer.segmentProgress = 0;
+                explorerPlayer.isWalking = true;
+                explorerPlayer.openQuizOnArrive = openModalWhenArrived;
+            }
+        }
+
+        // 前往上一島 / 下一島按鈕與方向鍵操作
+        function movePlayerStep(delta) {
+            const targetId = Math.max(1, Math.min(TAICHUNG_ISLANDS.length, explorerPlayer.currentIslandId + delta));
+            if (targetId !== explorerPlayer.currentIslandId) {
+                walkPlayerToIsland(targetId, false);
+            } else {
+                enterCurrentPlayerIsland();
+            }
+        }
+
+        function enterCurrentPlayerIsland() {
+            openIslandQuiz(explorerPlayer.currentIslandId);
+        }
+
+        function updatePlayerLocationHud() {
+            const island = TAICHUNG_ISLANDS.find(i => i.id === explorerPlayer.currentIslandId);
+            if (!island) return;
+            const hudText = document.getElementById('playerLocationText');
+            if (hudText) {
+                hudText.textContent = `第 ${island.id} 島：${island.emoji} ${island.name}`;
+            }
+            update3DFlagsAndLabels();
+        }
+
+        // 建立特定台中地標的 3D 立體模型
+        function build3DLandmarkMesh(island) {
+            const landmarkRoot = new THREE.Group();
+            const darkOutlineMat = new THREE.MeshLambertMaterial({ color: 0x4a3b32 });
+
+            switch (island.svgType) {
+                case 'miyahara': {
+                    // 宮原眼科：復古紅磚拱廊＋雙球聖代冰淇淋
+                    const brickBuilding = new THREE.Mesh(
+                        new THREE.BoxGeometry(2.6, 1.5, 1.8),
+                        new THREE.MeshLambertMaterial({ color: 0xd9534f })
+                    );
+                    brickBuilding.position.y = 0.75;
+                    landmarkRoot.add(brickBuilding);
+
+                    // 白色拱門裝飾
+                    for (let i = -0.65; i <= 0.65; i += 1.3) {
+                        const arch = new THREE.Mesh(
+                            new THREE.CylinderGeometry(0.35, 0.35, 0.95, 12),
+                            new THREE.MeshLambertMaterial({ color: 0xfffdf7 })
+                        );
+                        arch.position.set(i, 0.48, 0.82);
+                        landmarkRoot.add(arch);
+                    }
+
+                    // 屋頂草莓與芒果冰淇淋球＋櫻桃
+                    const scoopPink = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.68, 16, 16),
+                        new THREE.MeshLambertMaterial({ color: 0xfbcfe8 })
+                    );
+                    scoopPink.position.set(0.25, 1.85, 0);
+                    landmarkRoot.add(scoopPink);
+
+                    const scoopYellow = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.55, 16, 16),
+                        new THREE.MeshLambertMaterial({ color: 0xfef08a })
+                    );
+                    scoopYellow.position.set(-0.45, 1.7, 0.2);
+                    landmarkRoot.add(scoopYellow);
+
+                    const cherry = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.24, 12, 12),
+                        new THREE.MeshLambertMaterial({ color: 0xe65c4f })
+                    );
+                    cherry.position.set(0.25, 2.6, 0);
+                    landmarkRoot.add(cherry);
+                    break;
+                }
+                case 'gaomei': {
+                    // 高美濕地：木棧道＋旋轉白色大風車＋招潮蟹
+                    const boardwalk = new THREE.Mesh(
+                        new THREE.BoxGeometry(3.0, 0.18, 1.0),
+                        new THREE.MeshLambertMaterial({ color: 0xd97706 })
+                    );
+                    boardwalk.position.set(0, 0.15, 0.6);
+                    landmarkRoot.add(boardwalk);
+
+                    // 風車塔柱
+                    const tower = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.12, 0.22, 3.0, 12),
+                        new THREE.MeshLambertMaterial({ color: 0xffffff })
+                    );
+                    tower.position.set(0.7, 1.5, -0.4);
+                    landmarkRoot.add(tower);
+
+                    // 風車扇葉群組（加入動畫陣列持續旋轉）
+                    const hub = new THREE.Group();
+                    hub.position.set(0.7, 2.95, -0.22);
+                    for (let b = 0; b < 3; b++) {
+                        const bladePivot = new THREE.Group();
+                        bladePivot.rotation.z = (b * Math.PI * 2) / 3;
+                        const blade = new THREE.Mesh(
+                            new THREE.BoxGeometry(0.16, 1.25, 0.06),
+                            new THREE.MeshLambertMaterial({ color: 0xfffdf7 })
+                        );
+                        blade.position.y = 0.62;
+                        bladePivot.add(blade);
+                        hub.add(bladePivot);
+                    }
+                    const centerCap = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.18, 10, 10),
+                        new THREE.MeshLambertMaterial({ color: 0xe65c4f })
+                    );
+                    hub.add(centerCap);
+                    landmarkRoot.add(hub);
+                    windmillBlades3D.push(hub);
+
+                    // 橘色夕陽球與招潮蟹
+                    const crabBody = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.38, 12, 10),
+                        new THREE.MeshLambertMaterial({ color: 0xe65c4f })
+                    );
+                    crabBody.scale.set(1.3, 0.75, 1);
+                    crabBody.position.set(-0.75, 0.45, 0.55);
+                    landmarkRoot.add(crabBody);
+
+                    const bigClaw = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.28, 10, 10),
+                        new THREE.MeshLambertMaterial({ color: 0xf97316 })
+                    );
+                    bigClaw.position.set(-1.2, 0.78, 0.65);
+                    landmarkRoot.add(bigClaw);
+                    break;
+                }
+                case 'luce': {
+                    // 路思義教堂：黃金雙曲斜屋頂＋白色十字架
+                    const tentGeo = new THREE.ConeGeometry(1.75, 2.9, 4);
+                    const tentMesh = new THREE.Mesh(
+                        tentGeo,
+                        new THREE.MeshLambertMaterial({ color: 0xf59e0b })
+                    );
+                    tentMesh.position.y = 1.45;
+                    tentMesh.rotation.y = Math.PI / 4;
+                    tentMesh.scale.set(1.1, 1, 0.65);
+                    landmarkRoot.add(tentMesh);
+
+                    // 頂部十字架
+                    const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.7, 0.12), darkOutlineMat);
+                    crossV.position.y = 3.15;
+                    const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.12, 0.12), darkOutlineMat);
+                    crossH.position.y = 3.25;
+                    landmarkRoot.add(crossV, crossH);
+                    break;
+                }
+                case 'shenji': {
+                    // 審計新村：高低錯落老宿舍斜屋頂群
+                    const house1 = new THREE.Mesh(
+                        new THREE.BoxGeometry(1.6, 1.1, 1.4),
+                        new THREE.MeshLambertMaterial({ color: 0xfffdf7 })
+                    );
+                    house1.position.set(-0.5, 0.55, 0);
+                    landmarkRoot.add(house1);
+
+                    const roof1 = new THREE.Mesh(
+                        new THREE.ConeGeometry(1.35, 0.9, 4),
+                        new THREE.MeshLambertMaterial({ color: 0xe11d48 })
+                    );
+                    roof1.position.set(-0.5, 1.55, 0);
+                    roof1.rotation.y = Math.PI / 4;
+                    landmarkRoot.add(roof1);
+
+                    const house2 = new THREE.Mesh(
+                        new THREE.BoxGeometry(1.3, 0.9, 1.2),
+                        new THREE.MeshLambertMaterial({ color: 0xfef3c7 })
+                    );
+                    house2.position.set(0.75, 0.45, 0.25);
+                    landmarkRoot.add(house2);
+
+                    const roof2 = new THREE.Mesh(
+                        new THREE.ConeGeometry(1.1, 0.75, 4),
+                        new THREE.MeshLambertMaterial({ color: 0xfb923c })
+                    );
+                    roof2.position.set(0.75, 1.25, 0.25);
+                    roof2.rotation.y = Math.PI / 4;
+                    landmarkRoot.add(roof2);
+                    break;
+                }
+                case 'fengjia': {
+                    // 逢甲夜市：巨型章魚小丸子三串與紅燈籠攤位
+                    const skewer = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.06, 0.06, 3.2, 8),
+                        new THREE.MeshLambertMaterial({ color: 0xd97706 })
+                    );
+                    skewer.rotation.z = Math.PI / 2.2;
+                    skewer.position.set(0, 1.2, 0);
+                    landmarkRoot.add(skewer);
+
+                    for (let t = -0.85; t <= 0.85; t += 0.85) {
+                        const ball = new THREE.Mesh(
+                            new THREE.SphereGeometry(0.52, 16, 16),
+                            new THREE.MeshLambertMaterial({ color: 0xfbbf24 })
+                        );
+                        ball.position.set(t, 1.2 - t * 0.12, 0);
+                        landmarkRoot.add(ball);
+
+                        const sauce = new THREE.Mesh(
+                            new THREE.SphereGeometry(0.32, 12, 8),
+                            new THREE.MeshLambertMaterial({ color: 0x92400e })
+                        );
+                        sauce.position.set(t, 1.55 - t * 0.12, 0);
+                        landmarkRoot.add(sauce);
+                    }
+                    break;
+                }
+                case 'guguan': {
+                    // 谷關溫泉：雙峰翠綠高山＋寶藍溫泉池
+                    const mt1 = new THREE.Mesh(
+                        new THREE.ConeGeometry(1.3, 2.5, 7),
+                        new THREE.MeshLambertMaterial({ color: 0x16a34a })
+                    );
+                    mt1.position.set(-0.65, 1.25, -0.35);
+                    landmarkRoot.add(mt1);
+
+                    const mt2 = new THREE.Mesh(
+                        new THREE.ConeGeometry(1.05, 2.0, 7),
+                        new THREE.MeshLambertMaterial({ color: 0x4ade80 })
+                    );
+                    mt2.position.set(0.75, 1.0, -0.25);
+                    landmarkRoot.add(mt2);
+
+                    const springPool = new THREE.Mesh(
+                        new THREE.CylinderGeometry(1.15, 1.15, 0.25, 16),
+                        new THREE.MeshLambertMaterial({ color: 0x38bdf8 })
+                    );
+                    springPool.position.set(0, 0.18, 0.55);
+                    landmarkRoot.add(springPool);
+                    break;
+                }
+                case 'opera': {
+                    // 台中國家歌劇院：白色美聲涵洞方盒＋藍色曲面水景
+                    const mainCube = new THREE.Mesh(
+                        new THREE.BoxGeometry(2.5, 1.9, 1.9),
+                        new THREE.MeshLambertMaterial({ color: 0xfffdf7 })
+                    );
+                    mainCube.position.y = 0.95;
+                    landmarkRoot.add(mainCube);
+
+                    const caveLeft = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.55, 0.65, 1.5, 16),
+                        new THREE.MeshLambertMaterial({ color: 0x818cf8 })
+                    );
+                    caveLeft.position.set(-0.55, 0.75, 0.72);
+                    landmarkRoot.add(caveLeft);
+
+                    const caveRight = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.45, 0.55, 1.3, 16),
+                        new THREE.MeshLambertMaterial({ color: 0xc7d2fe })
+                    );
+                    caveRight.position.set(0.6, 0.65, 0.72);
+                    landmarkRoot.add(caveRight);
+                    break;
+                }
+                case 'pavilion': {
+                    // 台中公園湖心亭：經典雙併尖頂紅瓦涼亭
+                    const baseDeck = new THREE.Mesh(
+                        new THREE.BoxGeometry(2.8, 0.3, 1.6),
+                        new THREE.MeshLambertMaterial({ color: 0xfffdf7 })
+                    );
+                    baseDeck.position.y = 0.15;
+                    landmarkRoot.add(baseDeck);
+
+                    for (let side = -0.68; side <= 0.68; side += 1.36) {
+                        const pillar = new THREE.Mesh(
+                            new THREE.CylinderGeometry(0.48, 0.48, 0.95, 8),
+                            new THREE.MeshLambertMaterial({ color: 0xfef3c7 })
+                        );
+                        pillar.position.set(side, 0.75, 0);
+                        landmarkRoot.add(pillar);
+
+                        const roof = new THREE.Mesh(
+                            new THREE.ConeGeometry(1.15, 1.15, 4),
+                            new THREE.MeshLambertMaterial({ color: 0xdc2626 })
+                        );
+                        roof.position.set(side, 1.75, 0);
+                        roof.rotation.y = Math.PI / 4;
+                        landmarkRoot.add(roof);
+                    }
+                    break;
+                }
+                case 'bikeway': {
+                    // 后豐鐵馬道：藍色花梁鋼橋桁架＋兩顆單車輪
+                    const bridgeDeck = new THREE.Mesh(
+                        new THREE.BoxGeometry(3.1, 0.18, 1.1),
+                        new THREE.MeshLambertMaterial({ color: 0x0284c7 })
+                    );
+                    bridgeDeck.position.y = 0.25;
+                    landmarkRoot.add(bridgeDeck);
+
+                    const archBar = new THREE.Mesh(
+                        new THREE.BoxGeometry(2.8, 0.2, 0.9),
+                        new THREE.MeshLambertMaterial({ color: 0x0369a1 })
+                    );
+                    archBar.position.y = 1.65;
+                    landmarkRoot.add(archBar);
+
+                    for (let x = -1.2; x <= 1.2; x += 0.8) {
+                        const post = new THREE.Mesh(
+                            new THREE.CylinderGeometry(0.08, 0.08, 1.4, 8),
+                            new THREE.MeshLambertMaterial({ color: 0x0284c7 })
+                        );
+                        post.position.set(x, 0.95, 0.4);
+                        landmarkRoot.add(post);
+                    }
+
+                    // 鐵馬雙輪
+                    for (let w = -0.55; w <= 0.55; w += 1.1) {
+                        const wheel = new THREE.Mesh(
+                            new THREE.TorusGeometry(0.38, 0.09, 10, 20),
+                            new THREE.MeshLambertMaterial({ color: 0xfbbf24 })
+                        );
+                        wheel.position.set(w, 0.75, 0);
+                        landmarkRoot.add(wheel);
+                    }
+                    break;
+                }
+                case 'rainbow': {
+                    // 彩虹眷村：立體三色彩虹拱門＋粉紅童趣小屋
+                    const rainbowColors = [0xef4444, 0xf59e0b, 0x10b981];
+                    rainbowColors.forEach((col, idx) => {
+                        const arc = new THREE.Mesh(
+                            new THREE.TorusGeometry(1.55 - idx * 0.22, 0.12, 12, 28, Math.PI),
+                            new THREE.MeshLambertMaterial({ color: col })
+                        );
+                        arc.position.set(0, 0.2, -0.2);
+                        landmarkRoot.add(arc);
+                    });
+
+                    const cuteHouse = new THREE.Mesh(
+                        new THREE.BoxGeometry(1.5, 1.2, 1.2),
+                        new THREE.MeshLambertMaterial({ color: 0xf472b6 })
+                    );
+                    cuteHouse.position.set(0, 0.6, 0.25);
+                    landmarkRoot.add(cuteHouse);
+                    break;
+                }
+            }
+
+            return landmarkRoot;
+        }
+
+        // 建立島嶼上的 3D 小紅旗（過關時升起）
+        function create3DRedFlagGroup() {
+            const flagGroup = new THREE.Group();
+
+            // 旗桿
+            const pole = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.07, 0.07, 3.2, 8),
+                new THREE.MeshLambertMaterial({ color: 0x4a3b32 })
+            );
+            pole.position.y = 1.6;
+            flagGroup.add(pole);
+
+            // 旗桿頂端金球
+            const goldTop = new THREE.Mesh(
+                new THREE.SphereGeometry(0.18, 10, 10),
+                new THREE.MeshLambertMaterial({ color: 0xfbbf24 })
+            );
+            goldTop.position.y = 3.25;
+            flagGroup.add(goldTop);
+
+            // 小紅旗面
+            const flagCloth = new THREE.Mesh(
+                new THREE.ConeGeometry(0.65, 1.35, 3),
+                new THREE.MeshLambertMaterial({ color: 0xe65c4f })
+            );
+            flagCloth.rotation.z = -Math.PI / 2;
+            flagCloth.position.set(0.62, 2.75, 0);
+            flagGroup.add(flagCloth);
+
+            flagGroup.position.set(1.85, 0.2, -0.8);
+            return flagGroup;
+        }
+
+        function init3DOceanWorld() {
+            const container = document.getElementById('ocean3DContainer');
+            const canvas = document.getElementById('threeCanvas');
+            if (!container || !canvas || typeof THREE === 'undefined') return;
+
+            scene3D = new THREE.Scene();
+            scene3D.fog = new THREE.FogExp2(0xbae6fd, 0.0085);
+
+            camera3D = new THREE.PerspectiveCamera(
+                45,
+                container.clientWidth / container.clientHeight,
+                0.1,
+                300
+            );
+
+            renderer3D = new THREE.WebGLRenderer({
+                canvas: canvas,
+                antialias: true,
+                alpha: true
+            });
+            renderer3D.setSize(container.clientWidth, container.clientHeight);
+            renderer3D.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            // 溫暖陽光與柔和環境光
+            const ambientLight = new THREE.AmbientLight(0xfffbeb, 0.85);
+            scene3D.add(ambientLight);
+
+            const sunLight = new THREE.DirectionalLight(0xffffff, 0.75);
+            sunLight.position.set(25, 45, 30);
+            scene3D.add(sunLight);
+
+            // 湛藍海洋平面與波紋環
+            const seaGeo = new THREE.CylinderGeometry(85, 85, 1.5, 48);
+            const seaMat = new THREE.MeshLambertMaterial({
+                color: 0x38bdf8,
+                transparent: true,
+                opacity: 0.78
+            });
+            seaWavesMesh = new THREE.Mesh(seaGeo, seaMat);
+            seaWavesMesh.position.y = -1.4;
+            scene3D.add(seaWavesMesh);
+
+            // 建立 10 座立體台中島嶼
+            islandGroups3D = [];
+            windmillBlades3D = [];
+            const labelsContainer = document.getElementById('labels3DContainer');
+            const quickJumpBar = document.getElementById('quickJumpBar');
+            labelsContainer.innerHTML = '';
+            quickJumpBar.innerHTML = '';
+
+            TAICHUNG_ISLANDS.forEach((island, index) => {
+                const pos = ISLAND_3D_POSITIONS[index];
+                const islandRoot = new THREE.Group();
+                islandRoot.position.set(pos.x, 0, pos.z);
+
+                // 1. 海水白色浪花圈
+                const foamRing = new THREE.Mesh(
+                    new THREE.CylinderGeometry(3.55, 3.65, 0.18, 24),
+                    new THREE.MeshBasicMaterial({ color: 0xe0f2fe })
+                );
+                foamRing.position.y = -0.52;
+                islandRoot.add(foamRing);
+
+                // 2. 下層岩石泥土底座
+                const rockBase = new THREE.Mesh(
+                    new THREE.CylinderGeometry(3.2, 2.1, 1.4, 14),
+                    new THREE.MeshLambertMaterial({ color: 0xa16207 })
+                );
+                rockBase.position.y = -0.35;
+                islandRoot.add(rockBase);
+
+                // 3. 上層手繪感彩色草地平台
+                const topTurf = new THREE.Mesh(
+                    new THREE.CylinderGeometry(3.35, 3.2, 0.55, 16),
+                    new THREE.MeshLambertMaterial({ color: island.islandColor })
+                );
+                topTurf.position.y = 0.45;
+                islandRoot.add(topTurf);
+
+                // 4. 點綴小樹叢
+                const treeFoliage = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.45, 10, 10),
+                    new THREE.MeshLambertMaterial({ color: 0x22c55e })
+                );
+                treeFoliage.position.set(-2.1, 0.95, 1.1);
+                islandRoot.add(treeFoliage);
+
+                // 5. 專屬地標 3D 模型
+                const landmarkMesh = build3DLandmarkMesh(island);
+                landmarkMesh.position.y = 0.72;
+                islandRoot.add(landmarkMesh);
+
+                // 6. 3D 過關小紅旗
+                const flagGroup = create3DRedFlagGroup();
+                const isDone = gameState.islandsProgress[island.id]?.completed;
+                flagGroup.visible = Boolean(isDone);
+                flagGroup.scale.setScalar(isDone ? 1 : 0.01);
+                islandRoot.add(flagGroup);
+
+                // 為整個島嶼的所有 Mesh 標記 islandId 供 Raycaster 點擊偵測
+                islandRoot.traverse(child => {
+                    if (child.isMesh) {
+                        child.userData.islandId = island.id;
+                    }
+                });
+
+                scene3D.add(islandRoot);
+
+                // 建立對應的 HTML 懸浮名牌
+                const labelEl = document.createElement('div');
+                labelEl.className = 'island-3d-label';
+                labelEl.onclick = (e) => {
+                    e.stopPropagation();
+                    walkPlayerToIsland(island.id, true);
+                };
+                labelsContainer.appendChild(labelEl);
+
+                // 建立底部快速跳轉按鈕（點擊後角色會沿著海上道路跑過去！）
+                const jumpBtn = document.createElement('button');
+                jumpBtn.className = 'shrink-0 bg-[#fffdf7]/95 hover:bg-[#fde68a] text-[#4a3b32] border-2 border-[#4a3b32] rounded-full px-2.5 py-0.5 text-xs font-black transition-transform active:scale-95';
+                jumpBtn.innerHTML = `${island.emoji} ${island.name}`;
+                jumpBtn.onclick = () => walkPlayerToIsland(island.id, true);
+                quickJumpBar.appendChild(jumpBtn);
+
+                islandGroups3D.push({
+                    islandData: island,
+                    group: islandRoot,
+                    flagGroup: flagGroup,
+                    labelEl: labelEl,
+                    floatPhase: index * 0.65
+                });
+            });
+
+            // 建立連接 10 座島嶼的跨海木棧道與 3D 探險家角色
+            buildAllIslandRoads();
+            createExplorerPlayerMesh();
+
+            // 裝飾朵朵立體白雲
+            cloudGroups3D = [];
+            for (let c = 0; c < 8; c++) {
+                const cloud = new THREE.Group();
+                const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+                const p1 = new THREE.Mesh(new THREE.SphereGeometry(1.4, 12, 12), cloudMat);
+                const p2 = new THREE.Mesh(new THREE.SphereGeometry(1.0, 12, 12), cloudMat);
+                p2.position.set(1.2, -0.2, 0.2);
+                const p3 = new THREE.Mesh(new THREE.SphereGeometry(1.1, 12, 12), cloudMat);
+                p3.position.set(-1.2, -0.15, -0.1);
+                cloud.add(p1, p2, p3);
+
+                const angle = (c / 8) * Math.PI * 2;
+                const dist = 34 + (c % 2) * 8;
+                cloud.position.set(Math.cos(angle) * dist, 9 + (c % 3) * 2, Math.sin(angle) * dist);
+                scene3D.add(cloud);
+                cloudGroups3D.push({ mesh: cloud, angle: angle, dist: dist, speed: 0.0008 + (c % 3) * 0.0003 });
+            }
+
+            update3DFlagsAndLabels();
+            bind3DInteractionEvents(canvas);
+            window.addEventListener('resize', handle3DResize);
+            animate3DLoop();
+        }
+
+        // 同步更新 3D 島嶼上的紅旗狀態與懸浮名牌內容
+        function update3DFlagsAndLabels() {
+            islandGroups3D.forEach(item => {
+                const prog = gameState.islandsProgress[item.islandData.id];
+                if (!prog) return;
+
+                item.flagGroup.visible = prog.completed;
+                item.flagGroup.scale.setScalar(prog.completed ? 1 : 0.01);
+
+                const isPlayerHere = explorerPlayer.currentIslandId === item.islandData.id;
+                const playerBadge = isPlayerHere
+                    ? `<span class="bg-[#38bdf8] text-white border border-[#4a3b32] px-1.5 py-0.2 rounded-full text-[10px] font-black">🧒在這裡</span>`
+                    : '';
+                const starsBadge = prog.stars > 0 ? `<span class="ml-0.5 text-amber-500">${'⭐'.repeat(prog.stars)}</span>` : '';
+                const doneBadge = prog.completed
+                    ? `<span class="bg-[#fee2e2] text-[#d93829] border border-[#d93829] px-1.5 py-0.2 rounded-full text-[10px] font-black ml-0.5">🚩已蓋章</span>`
+                    : '';
+
+                item.labelEl.innerHTML = `
+                    <div class="bg-[#fffdf7]/95 border-2 border-[#4a3b32] rounded-2xl px-2.5 py-1 shadow-[3px_3px_0px_#4a3b32] flex items-center gap-1 text-xs font-black text-[#4a3b32] ${
+                        isPlayerHere ? 'ring-4 ring-[#38bdf8] bg-[#f0f9ff]' : prog.completed ? 'ring-2 ring-[#f59e0b]' : ''
+                    }">
+                        ${playerBadge}
+                        <span class="bg-[#fde68a] border border-[#4a3b32] rounded-full px-1.5 text-[10px]">${item.islandData.id}</span>
+                        <span>${item.islandData.emoji} ${item.islandData.name}</span>
+                        ${starsBadge}
+                        ${doneBadge}
+                    </div>
+                `;
+            });
+        }
+
+        function bind3DInteractionEvents(canvas) {
+            // 鍵盤左右方向鍵控制探險家沿著道路前進或後退，Enter 登島闖關
+            window.addEventListener('keydown', (e) => {
+                const modalOpen = !document.getElementById('islandModal').classList.contains('hidden');
+                if (modalOpen) return;
+                if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+                    movePlayerStep(1);
+                } else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+                    movePlayerStep(-1);
+                } else if (e.key === 'Enter' || e.key === ' ') {
+                    enterCurrentPlayerIsland();
+                }
+            });
+
+            // 滑鼠按下
+            canvas.addEventListener('mousedown', (e) => {
+                camControl.isDragging = true;
+                camControl.dragDistance = 0;
+                camControl.prevX = e.clientX;
+                camControl.prevY = e.clientY;
+            });
+
+            // 滑鼠移動（旋轉 3D 攝影機）
+            window.addEventListener('mousemove', (e) => {
+                if (!camControl.isDragging) return;
+                const dx = e.clientX - camControl.prevX;
+                const dy = e.clientY - camControl.prevY;
+                camControl.dragDistance += Math.abs(dx) + Math.abs(dy);
+                camControl.prevX = e.clientX;
+                camControl.prevY = e.clientY;
+
+                camControl.targetTheta -= dx * 0.007;
+                camControl.targetPhi = Math.max(0.45, Math.min(1.32, camControl.targetPhi - dy * 0.006));
+            });
+
+            // 滑鼠放開（若未大幅拖曳則視為點擊 3D 島嶼）
+            window.addEventListener('mouseup', (e) => {
+                if (!camControl.isDragging) return;
+                camControl.isDragging = false;
+                if (camControl.dragDistance < 6 && e.target === canvas) {
+                    check3DIslandClick(e.clientX, e.clientY, canvas);
+                }
+            });
+
+            // 滾輪縮放
+            canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                camControl.targetRadius = Math.max(18, Math.min(68, camControl.targetRadius + e.deltaY * 0.03));
+            }, { passive: false });
+
+            // 觸控支援（單指旋轉與點擊）
+            canvas.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    camControl.isDragging = true;
+                    camControl.dragDistance = 0;
+                    camControl.prevX = e.touches[0].clientX;
+                    camControl.prevY = e.touches[0].clientY;
+                }
+            }, { passive: true });
+
+            canvas.addEventListener('touchmove', (e) => {
+                if (!camControl.isDragging || e.touches.length !== 1) return;
+                const dx = e.touches[0].clientX - camControl.prevX;
+                const dy = e.touches[0].clientY - camControl.prevY;
+                camControl.dragDistance += Math.abs(dx) + Math.abs(dy);
+                camControl.prevX = e.touches[0].clientX;
+                camControl.prevY = e.touches[0].clientY;
+
+                camControl.targetTheta -= dx * 0.007;
+                camControl.targetPhi = Math.max(0.45, Math.min(1.32, camControl.targetPhi - dy * 0.006));
+            }, { passive: true });
+
+            canvas.addEventListener('touchend', (e) => {
+                if (!camControl.isDragging) return;
+                camControl.isDragging = false;
+                if (camControl.dragDistance < 10 && e.changedTouches.length > 0) {
+                    const t = e.changedTouches[0];
+                    check3DIslandClick(t.clientX, t.clientY, canvas);
+                }
+            });
+        }
+
+        function check3DIslandClick(clientX, clientY, canvas) {
+            const rect = canvas.getBoundingClientRect();
+            mouseVec3D.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+            mouseVec3D.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+
+            raycaster3D.setFromCamera(mouseVec3D, camera3D);
+            const intersects = raycaster3D.intersectObjects(scene3D.children, true);
+
+            for (let i = 0; i < intersects.length; i++) {
+                const hitIslandId = intersects[i].object.userData?.islandId;
+                if (hitIslandId) {
+                    walkPlayerToIsland(hitIslandId, true);
+                    break;
+                }
+            }
+        }
+
+        function handle3DResize() {
+            const container = document.getElementById('ocean3DContainer');
+            if (!container || !renderer3D || !camera3D) return;
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            if (w === 0 || h === 0) return;
+            camera3D.aspect = w / h;
+            camera3D.updateProjectionMatrix();
+            renderer3D.setSize(w, h);
+        }
+
+        function animate3DLoop() {
+            requestAnimationFrame(animate3DLoop);
+            if (!renderer3D || !scene3D || !camera3D) return;
+
+            const time = performance.now() * 0.001;
+
+            // 平滑插值攝影機軌道位置
+            camControl.theta += (camControl.targetTheta - camControl.theta) * 0.08;
+            camControl.phi += (camControl.targetPhi - camControl.phi) * 0.08;
+            camControl.radius += (camControl.targetRadius - camControl.radius) * 0.08;
+            camControl.lookAtPos.lerp(camControl.targetLookAt, 0.08);
+
+            camera3D.position.x = camControl.lookAtPos.x + camControl.radius * Math.sin(camControl.phi) * Math.sin(camControl.theta);
+            camera3D.position.y = camControl.lookAtPos.y + camControl.radius * Math.cos(camControl.phi);
+            camera3D.position.z = camControl.lookAtPos.z + camControl.radius * Math.sin(camControl.phi) * Math.cos(camControl.theta);
+            camera3D.lookAt(camControl.lookAtPos);
+
+            // 高美濕地大風車旋轉動畫
+            windmillBlades3D.forEach(hub => {
+                hub.rotation.z -= 0.035;
+            });
+
+            // 雲朵緩慢環繞漂浮
+            cloudGroups3D.forEach(c => {
+                c.angle += c.speed;
+                c.mesh.position.x = Math.cos(c.angle) * c.dist;
+                c.mesh.position.z = Math.sin(c.angle) * c.dist;
+            });
+
+            // 更新 3D 探險家角色沿著跨海步道奔跑的動畫與鏡頭跟隨
+            if (explorerPlayer.mesh) {
+                if (explorerPlayer.isWalking && explorerPlayer.walkSegments.length > 0) {
+                    const currentSeg = explorerPlayer.walkSegments[explorerPlayer.currentSegIdx];
+                    // 若一次跨越越多島，跑步速度自動加快，讓體驗流暢不拖泥帶水
+                    const speedMultiplier = explorerPlayer.walkSegments.length > 2 ? 0.055 : 0.032;
+                    explorerPlayer.segmentProgress += speedMultiplier;
+
+                    if (explorerPlayer.segmentProgress >= 1) {
+                        explorerPlayer.currentIslandId = currentSeg.toId;
+                        updatePlayerLocationHud();
+                        explorerPlayer.currentSegIdx++;
+                        explorerPlayer.segmentProgress = 0;
+
+                        // 已抵達最終目的地島嶼！
+                        if (explorerPlayer.currentSegIdx >= explorerPlayer.walkSegments.length) {
+                            explorerPlayer.isWalking = false;
+                            const destIslandPos = ISLAND_3D_POSITIONS[explorerPlayer.currentIslandId - 1];
+                            explorerPlayer.mesh.position.set(destIslandPos.x, 0.78, destIslandPos.z + 1.85);
+                            explorerPlayer.leftLeg.rotation.x = 0;
+                            explorerPlayer.rightLeg.rotation.x = 0;
+                            explorerPlayer.leftArm.rotation.x = 0;
+                            explorerPlayer.rightArm.rotation.x = 0;
+
+                            focusOn3DIsland(explorerPlayer.currentIslandId);
+                            if (explorerPlayer.openQuizOnArrive) {
+                                const targetQuizId = explorerPlayer.currentIslandId;
+                                setTimeout(() => {
+                                    openIslandQuiz(targetQuizId);
+                                }, 260);
+                            }
+                        }
+                    } else {
+                        // 沿著拱橋曲線移動並面向前方
+                        const t = explorerPlayer.segmentProgress;
+                        const point = currentSeg.curve.getPoint(t);
+                        const lookAheadPoint = currentSeg.curve.getPoint(Math.min(1, t + 0.05));
+
+                        // 加上蹦蹦跳跳的步伐高度
+                        const hopBounce = Math.abs(Math.sin(t * Math.PI * 8)) * 0.28;
+                        explorerPlayer.mesh.position.set(point.x, point.y + hopBounce, point.z);
+                        explorerPlayer.mesh.lookAt(lookAheadPoint.x, point.y + hopBounce, lookAheadPoint.z);
+
+                        // 手腳擺動跑步姿勢
+                        const swing = Math.sin(time * 22) * 0.65;
+                        explorerPlayer.leftLeg.rotation.x = swing;
+                        explorerPlayer.rightLeg.rotation.x = -swing;
+                        explorerPlayer.leftArm.rotation.x = -swing;
+                        explorerPlayer.rightArm.rotation.x = swing;
+
+                        // 攝影機溫柔跟隨奔跑中的探險家
+                        camControl.targetLookAt.set(point.x, 1.2, point.z);
+                    }
+                } else {
+                    // 站在島嶼上時的待機呼吸與隨著島嶼一起輕微上下浮動
+                    const standIdx = explorerPlayer.currentIslandId - 1;
+                    const standIsland = islandGroups3D[standIdx];
+                    if (standIsland) {
+                        const basePos = ISLAND_3D_POSITIONS[standIdx];
+                        explorerPlayer.mesh.position.set(
+                            basePos.x,
+                            standIsland.group.position.y + 0.78 + Math.abs(Math.sin(time * 3)) * 0.08,
+                            basePos.z + 1.85
+                        );
+                    }
+                }
+            }
+
+            // 10 座小島上下輕柔漂浮＋計算 2D 懸浮標籤投影座標
+            const container = document.getElementById('ocean3DContainer');
+            const widthHalf = container.clientWidth / 2;
+            const heightHalf = container.clientHeight / 2;
+
+            islandGroups3D.forEach(item => {
+                item.group.position.y = Math.sin(time * 1.8 + item.floatPhase) * 0.32;
+
+                // 投射島嶼頂端座標至螢幕
+                const worldPos = new THREE.Vector3();
+                worldPos.setFromMatrixPosition(item.group.matrixWorld);
+                worldPos.y += 4.1;
+                worldPos.project(camera3D);
+
+                if (worldPos.z < 1) {
+                    const screenX = (worldPos.x * widthHalf) + widthHalf;
+                    const screenY = -(worldPos.y * heightHalf) + heightHalf;
+                    item.labelEl.style.left = `${screenX}px`;
+                    item.labelEl.style.top = `${screenY}px`;
+                    item.labelEl.style.display = 'block';
+                } else {
+                    item.labelEl.style.display = 'none';
+                }
+            });
+
+            renderer3D.render(scene3D, camera3D);
+        }
+
+        // 啟動遊戲
+        window.onload = function () {
+            initGameState();
+            renderMapAndStats();
+            init3DOceanWorld();
+        };
+    </script>
+</body>
+</html>
